@@ -32,41 +32,128 @@ Each number is the window closest to its limit, since that is the one that stops
 
 Any service can be added with a small script: atus runs it and reads usage from the JSON it prints. A plugin then appears in the menu bar, the panel, and **서비스 선택** like a built-in service. Since the script, not atus, decides how to authenticate, you stay in control of credentials and of each vendor's terms.
 
-1. Write a script that prints:
-   ```json
-   {
-     "plan": "Pro",
-     "windows": [
-       { "label": "5h", "percent": 42, "resetsAt": "2026-10-28T12:00:00Z" },
-       { "label": "week", "percent": 18 }
-     ],
-     "details": [{ "label": "Credits", "value": "$12.00" }]
-   }
-   ```
-   - `windows` are the limits. `percent` is how much is used (0–100), and the menu bar shows the highest one.
-   - `resetsAt` is optional and may be ISO-8601 or Unix seconds.
-   - `plan` and `details` are optional extra lines in the panel.
-   - On failure, print a short reason to stderr and exit non-zero. The panel shows the last stderr line.
+### Try it in 5 minutes
 
-   [`examples/plugins/demo.sh`](examples/plugins/demo.sh) is a starting point.
-2. Register it in `~/.config/atus/providers.json`. **서비스 선택 → 플러그인 설정 열기** creates and opens the file.
-   ```json
-   {
-     "providers": [
-       { "id": "demo", "name": "Demo", "command": "~/atus-plugins/demo.sh", "icon": "sparkles" }
-     ]
-   }
-   ```
-   | Field | |
-   |---|---|
-   | `id` | Unique, and not one of the built-in IDs (`claude`, `codex`, `grok`, `cursor`, `copilot`). |
-   | `name` | Shown in the panel. |
-   | `command` | Run with `/bin/sh -c` from your home directory, with `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin` on `PATH`. |
-   | `icon` | Optional. An [SF Symbol](https://developer.apple.com/sf-symbols/) name, or the path to an SVG or PNG (drawn monochrome). The default is a puzzle piece. |
-   | `requirement` | Optional caption under the name in **서비스 선택**. |
-   | `timeout` | Optional, in seconds. The default is 30. |
+This walks through the bundled demo plugin, which prints made-up numbers. Once it shows up in your menu bar, you know the setup works and only the script is left to write.
 
-atus re-reads the file on every refresh (⌘R in the panel). New plugins start enabled. Mistakes in the file are listed under **서비스 선택**, and the valid entries still load.
+**1. Get the script.** Plugins can live anywhere; `~/atus-plugins` keeps them together.
+
+```sh
+mkdir -p ~/atus-plugins
+curl -fsSL https://raw.githubusercontent.com/Bill1907/atus/main/examples/plugins/demo.sh -o ~/atus-plugins/demo.sh
+chmod +x ~/atus-plugins/demo.sh
+```
+
+**2. Run it yourself first.** If it doesn't work in Terminal, it won't work in atus either.
+
+```sh
+~/atus-plugins/demo.sh | jq .
+```
+
+You should see the JSON pretty-printed. If `jq` reports a parse error, the output isn't valid JSON. `jq` ships with macOS 15 and later; on macOS 14 run `brew install jq` or use `python3 -m json.tool` instead.
+
+**3. Register it.** Open the atus panel, expand **서비스 선택**, and click **플러그인 설정 열기 (providers.json)**. That creates `~/.config/atus/providers.json` and opens it in your text editor. Replace its contents with:
+
+```json
+{
+  "providers": [
+    { "id": "demo", "name": "Demo", "command": "~/atus-plugins/demo.sh", "icon": "sparkles" }
+  ]
+}
+```
+
+Save the file. To add more plugins later, add more `{ ... }` entries to the list, separated by commas.
+
+**4. Load it.** Open the panel and press ⌘R, or wait for the next automatic refresh (at most 5 minutes). **Demo 42%** appears in the menu bar and the panel. New plugins start enabled; turn them off under **서비스 선택** like any other service.
+
+**5. Make it real.** Edit the script to fetch your service's numbers, or start from the [OpenRouter example](#example-openrouter-credits) below. To remove the demo, delete its entry from `providers.json`.
+
+### What your script must print
+
+```json
+{
+  "plan": "Pro",
+  "windows": [
+    { "label": "5h", "percent": 42, "resetsAt": "2026-10-28T12:00:00Z" },
+    { "label": "week", "percent": 18 }
+  ],
+  "details": [{ "label": "Credits", "value": "$12.00" }]
+}
+```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `windows` | no | The limits, each drawn as a bar. The menu bar shows the highest `percent`. |
+| `windows[].label` | yes | Name of the limit, e.g. `5h` or `month`. |
+| `windows[].percent` | yes | How much is used, 0–100 (not how much is left). |
+| `windows[].resetsAt` | no | When the limit resets: ISO-8601 (`2026-10-28T12:00:00Z`) or Unix seconds (`1798248843`). Shown as a countdown. |
+| `plan` | no | Plan name shown next to the service name. |
+| `details` | no | Extra `label` / `value` lines, both strings. |
+
+When something goes wrong, print a short reason to **stderr** and exit with a non-zero code. The panel shows the last stderr line, and the menu bar marks the number with `!`:
+
+```sh
+echo "API key expired" >&2
+exit 1
+```
+
+### `providers.json` reference
+
+| Field | Required | Meaning |
+|---|---|---|
+| `id` | yes | Unique short name, e.g. `gemini`. It can't be a built-in ID (`claude`, `codex`, `grok`, `cursor`, `copilot`). |
+| `name` | yes | Shown in the menu bar tooltip and the panel. |
+| `command` | yes | Run with `/bin/sh -c` from your home directory, so `~` and arguments work (`"~/atus-plugins/x.sh --account work"`). `PATH` includes `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Your shell profile (`.zshrc`) is **not** loaded. |
+| `icon` | no | An [SF Symbol](https://developer.apple.com/sf-symbols/) name such as `sparkles`, `bolt.fill` or `cloud`, or the path to an SVG or PNG file, drawn monochrome. The default is a puzzle piece. |
+| `requirement` | no | Caption under the name in **서비스 선택**, e.g. `OpenRouter management key`. |
+| `timeout` | no | Seconds before atus stops the script. The default is 30. |
+
+atus re-reads the file on every refresh. If an entry is wrong, the reason appears under **서비스 선택** and the other entries still load.
+
+### Keep secrets out of the files
+
+Don't paste API keys into `providers.json` or the script. Store them in the macOS keychain once:
+
+```sh
+security add-generic-password -a "$USER" -s atus-myservice -w 'YOUR_API_KEY'
+```
+
+Then read them in the script:
+
+```sh
+key=$(security find-generic-password -s atus-myservice -w) || { echo "no key in keychain" >&2; exit 1; }
+```
+
+### Example: OpenRouter credits
+
+[`examples/plugins/openrouter.sh`](examples/plugins/openrouter.sh) shows how much of your [OpenRouter](https://openrouter.ai) credit balance is used, through OpenRouter's [official credits API](https://openrouter.ai/docs/api/api-reference/credits/get-remaining-credits).
+
+1. Create a **management key** at openrouter.ai → Settings → Management Keys. A normal API key gets `Only management keys can perform this operation`.
+2. Store it in the keychain:
+   ```sh
+   security add-generic-password -a "$USER" -s atus-openrouter -w 'sk-or-v1-...'
+   ```
+3. Install the script and check it in Terminal:
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/Bill1907/atus/main/examples/plugins/openrouter.sh -o ~/atus-plugins/openrouter.sh
+   chmod +x ~/atus-plugins/openrouter.sh
+   ~/atus-plugins/openrouter.sh
+   ```
+4. Add it to `providers.json`:
+   ```json
+   { "id": "openrouter", "name": "OpenRouter", "command": "~/atus-plugins/openrouter.sh", "icon": "dollarsign.circle", "requirement": "OpenRouter management key" }
+   ```
+
+### When a plugin doesn't work
+
+| What you see | Cause and fix |
+|---|---|
+| `플러그인 오류: … Permission denied` | The script isn't executable. Run `chmod +x` on it. |
+| `플러그인 오류: … command not found` | The script or a tool it uses isn't on atus's `PATH`, which doesn't include your `.zshrc` changes. Use full paths (`/opt/homebrew/bin/jq`) or a path in the `command` field. |
+| `플러그인 오류: <your message>` | The script exited non-zero; the message is the last line it wrote to stderr. |
+| `응답 해석 실패: 플러그인 출력이 형식과 달라요` | The output isn't valid JSON or is missing `label`/`percent`. Run the script in Terminal and pipe it through `jq .`. Print nothing else to stdout; send debug output to stderr. |
+| `시간 초과: 플러그인 명령` | The script ran longer than `timeout`. Add timeouts to network calls (`curl --max-time 20`) or raise `timeout`. |
+| The plugin doesn't appear at all | Check the messages under **서비스 선택**. A typo in `providers.json` or an `id` that is already used is reported there. Then press ⌘R in the panel. |
 
 ### Why Google Gemini is not built in
 
