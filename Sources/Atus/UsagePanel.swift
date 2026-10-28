@@ -48,7 +48,8 @@ private struct LaunchAtLoginToggle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle("로그인 시 자동 실행", isOn: Binding(get: { isEnabled }, set: setEnabled))
+            // A closure, not `set: setEnabled`: Swift 6.3 crashes in IRGen on the method-reference thunk.
+            Toggle("로그인 시 자동 실행", isOn: Binding(get: { isEnabled }, set: { setEnabled($0) }))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
             if let error {
