@@ -3,7 +3,8 @@
 A macOS menu bar app that shows how much of your **Claude** and **Grok** subscription limits you have used.
 
 ```
-C 46% · G 21%
+C 46%
+G 21%
 ```
 
 Click it for the details: Claude's 5-hour session and weekly windows, Grok's weekly pool, per-product breakdowns, extra-usage credits, and a countdown to each reset.
@@ -16,6 +17,8 @@ Click it for the details: Claude's 5-hour session and weekly windows, Grok's wee
 |---|---|---|
 | Claude (Pro / Max) | Claude Code login | 5-hour session %, weekly %, per-model weekly % (if your plan has them), weekly usage by product, extra-usage spend |
 | Grok (SuperGrok / X Premium) | Grok CLI login | weekly pool %, usage by product, extra-usage credit balance, plan |
+
+The label is two short stacked lines, so it fits next to the notch on crowded MacBook menu bars. On first launch atus places itself at the right end of the menu bar items. After that it stays wherever you ⌘-drag it, or wherever Ice or Bartender puts it.
 
 The menu bar number is the window closest to its limit, since that is the one that stops you first. A `!` after a number means the last refresh failed and the value shown is the last good one. Open the panel to see why.
 
