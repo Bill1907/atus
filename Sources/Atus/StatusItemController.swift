@@ -1,3 +1,4 @@
+import AtusCore
 import AppKit
 import Observation
 import SwiftUI
@@ -55,32 +56,37 @@ final class StatusItemController: NSObject {
     /// Re-renders the label whenever the store's values change.
     private func observeStore() {
         withObservationTracking {
-            render(lines: store.menuLines, title: store.menuTitle)
+            render(entries: store.menuEntries, title: store.menuTitle)
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeStore() }
         }
     }
 
-    private func render(lines: [String], title: String) {
+    private func render(entries: [(id: ProviderID, text: String)], title: String) {
         guard let button = statusItem.button else { return }
-        button.image = Self.labelImage(lines: lines)
+        button.image = Self.labelImage(entries: entries)
         button.setAccessibilityLabel(title)
         button.toolTip = title
     }
 
-    /// Stacks the lines into a template image so the menu bar tints it for light/dark.
-    static func labelImage(lines: [String]) -> NSImage {
+    /// Stacks one "logo + percent" row per provider into a template image, so the
+    /// menu bar tints it for light and dark mode.
+    static func labelImage(entries: [(id: ProviderID, text: String)]) -> NSImage {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .semibold)
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.black]
-        let strings = lines.map { NSAttributedString(string: $0, attributes: attributes) }
+        let rows = entries.map { (logo: ProviderLogo.image(for: $0.id), text: NSAttributedString(string: $0.text, attributes: attributes)) }
         let lineHeight = ceil(font.ascender - font.descender)
-        let width = ceil(strings.map { $0.size().width }.max() ?? 0)
-        let height = max(22, lineHeight * CGFloat(strings.count))
+        let logoSize = lineHeight - 1.5
+        let textX = logoSize + 2.5
+        let width = ceil(textX + (rows.map { $0.text.size().width }.max() ?? 0))
+        let height = max(22, lineHeight * CGFloat(rows.count))
 
         let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
-            var y = (height - lineHeight * CGFloat(strings.count)) / 2
-            for string in strings {
-                string.draw(at: NSPoint(x: 0, y: y))
+            var y = (height - lineHeight * CGFloat(rows.count)) / 2
+            for row in rows {
+                let logoRect = NSRect(x: 0, y: y + (lineHeight - logoSize) / 2, width: logoSize, height: logoSize)
+                row.logo.draw(in: logoRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                row.text.draw(at: NSPoint(x: textX, y: y))
                 y += lineHeight
             }
             return true

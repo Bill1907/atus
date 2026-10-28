@@ -2,12 +2,7 @@
 
 A macOS menu bar app that shows how much of your **Claude** and **Grok** subscription limits you have used.
 
-```
-C 46%
-G 21%
-```
-
-Click it for the details: Claude's 5-hour session and weekly windows, Grok's weekly pool, per-product breakdowns, extra-usage credits, and a countdown to each reset.
+The menu bar shows two stacked rows, each with the provider's logo and a percentage (Claude 46%, Grok 21%). Click it for the details: Claude's 5-hour session and weekly windows, Grok's weekly pool, per-product breakdowns, extra-usage credits, and a countdown to each reset.
 
 > The UI is currently in Korean.
 
@@ -18,7 +13,7 @@ Click it for the details: Claude's 5-hour session and weekly windows, Grok's wee
 | Claude (Pro / Max) | Claude Code login | 5-hour session %, weekly %, per-model weekly % (if your plan has them), weekly usage by product, extra-usage spend |
 | Grok (SuperGrok / X Premium) | Grok CLI login | weekly pool %, usage by product, extra-usage credit balance, plan |
 
-The label is two short stacked lines, so it fits next to the notch on crowded MacBook menu bars. On first launch atus places itself at the right end of the menu bar items. After that it stays wherever you ⌘-drag it, or wherever Ice or Bartender puts it.
+The label is two short stacked rows, so it fits next to the notch on crowded MacBook menu bars. On first launch atus places itself at the right end of the menu bar items. After that it stays wherever you ⌘-drag it, or wherever Ice or Bartender puts it.
 
 The menu bar number is the window closest to its limit, since that is the one that stops you first. A `!` after a number means the last refresh failed and the value shown is the last good one. Open the panel to see why.
 
@@ -106,3 +101,5 @@ This runs the tests and imports the `.p12` into a throwaway keychain, so the log
 ## License
 
 [MIT](LICENSE)
+
+Claude is a trademark of Anthropic, and Grok is a trademark of xAI. Their logos are used only to label each service's numbers. Logo artwork comes from [Simple Icons](https://simpleicons.org) (CC0) for Claude and [LobeHub Icons](https://github.com/lobehub/lobe-icons) (MIT) for Grok; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). atus is not affiliated with either company.

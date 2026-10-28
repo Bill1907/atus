@@ -12,14 +12,6 @@ public enum ProviderID: String, Sendable, CaseIterable, Identifiable {
         case .grok: "Grok"
         }
     }
-
-    /// One-letter tag used in the menu bar title.
-    public var shortName: String {
-        switch self {
-        case .claude: "C"
-        case .grok: "G"
-        }
-    }
 }
 
 /// A rate-limit window such as Claude's 5-hour session or Grok's weekly pool.

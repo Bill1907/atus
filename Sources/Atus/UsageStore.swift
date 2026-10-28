@@ -24,17 +24,21 @@ final class UsageStore {
         Task { await refreshOnWake() }
     }
 
-    /// One entry per provider, e.g. "C 47%"; a trailing "!" marks a failed last refresh.
-    var menuLines: [String] {
+    /// One entry per provider with its menu bar text, e.g. "47%"; a trailing "!" marks
+    /// a failed last refresh.
+    var menuEntries: [(id: ProviderID, text: String)] {
         providers.map { provider in
             let percent = states[provider.id]?.snapshot?.headlinePercent
             let text = percent.map { "\(Int($0.rounded()))%" } ?? "–"
             let failed = states[provider.id]?.error != nil
-            return "\(provider.id.shortName) \(text)\(failed ? "!" : "")"
+            return (provider.id, text + (failed ? "!" : ""))
         }
     }
 
-    var menuTitle: String { menuLines.joined(separator: " · ") }
+    /// Spoken/tooltip form of the label, e.g. "Claude 47% · Grok 21%".
+    var menuTitle: String {
+        menuEntries.map { "\($0.id.displayName) \($0.text)" }.joined(separator: " · ")
+    }
 
     func state(for id: ProviderID) -> ProviderState {
         states[id] ?? ProviderState()
