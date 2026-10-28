@@ -29,7 +29,9 @@ struct UsagePanel: View {
     private var providerList: some View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(store.providerIDs) { id in
-                ProviderSection(id: id, state: store.state(for: id))
+                if let info = store.info(for: id) {
+                    ProviderSection(info: info, state: store.state(for: id))
+                }
                 if id != store.providerIDs.last { Divider() }
             }
         }
@@ -63,37 +65,57 @@ private struct ProviderPicker: View {
     @State private var isExpanded = false
 
     var body: some View {
-        DisclosureGroup("서비스 선택 (\(store.providerIDs.count)/\(store.allProviderIDs.count))", isExpanded: $isExpanded) {
+        DisclosureGroup("서비스 선택 (\(store.providerIDs.count)/\(store.allProviders.count))", isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(store.allProviderIDs) { id in
-                    let isOn = store.enabled.contains(id)
-                    Toggle(isOn: Binding(get: { isOn }, set: { store.setEnabled(id, $0) })) {
+                ForEach(store.allProviders) { info in
+                    let isOn = store.enabled.contains(info.id)
+                    Toggle(isOn: Binding(get: { isOn }, set: { store.setEnabled(info.id, $0) })) {
                         HStack(spacing: 6) {
-                            ProviderLogoView(id: id)
+                            ProviderLogoView(icon: info.icon)
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(id.displayName)
-                                Text(id.requirement).font(.caption2).foregroundStyle(.secondary)
+                                Text(info.displayName)
+                                Text(info.requirement).font(.caption2).foregroundStyle(.secondary)
                             }
                         }
                     }
                     .toggleStyle(.checkbox)
-                    .disabled(isOn && store.enabled.count == 1)
+                    .disabled(isOn && store.providerIDs.count == 1)
                 }
+                ForEach(store.pluginErrors, id: \.self) { error in
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button("플러그인 설정 열기 (providers.json)") { openPluginConfig() }
+                    .buttonStyle(.link)
+                    .font(.caption2)
             }
             .padding(.top, 6)
         }
         .font(.caption)
     }
+
+    /// Opens providers.json, creating an empty one first so there is something to edit.
+    private func openPluginConfig() {
+        let url = PluginLoader.configURL
+        if !FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data("{\n  \"providers\": []\n}\n".utf8).write(to: url)
+        }
+        NSWorkspace.shared.open(url)
+    }
 }
 
 struct ProviderLogoView: View {
-    let id: ProviderID
+    let icon: ProviderIcon
     var size: CGFloat = 13
 
     var body: some View {
-        Image(nsImage: ProviderLogo.image(for: id))
+        Image(nsImage: ProviderLogo.image(for: icon))
             .renderingMode(.template)
             .resizable()
+            .aspectRatio(contentMode: .fit)
             .frame(width: size, height: size)
     }
 }
@@ -128,15 +150,15 @@ private struct LaunchAtLoginToggle: View {
 }
 
 private struct ProviderSection: View {
-    let id: ProviderID
+    let info: ProviderInfo
     let state: UsageStore.ProviderState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                ProviderLogoView(id: id, size: 14)
+                ProviderLogoView(icon: info.icon, size: 14)
                     .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
-                Text(id.displayName).font(.headline)
+                Text(info.displayName).font(.headline)
                 if let plan = state.snapshot?.plan {
                     Text(plan).font(.caption).foregroundStyle(.secondary)
                 }

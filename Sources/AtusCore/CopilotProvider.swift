@@ -4,7 +4,7 @@ import Foundation
 /// endpoint Copilot editor extensions use. The GitHub token comes from `gh auth token`
 /// first, then from the Copilot editor plugins' `~/.config/github-copilot` files.
 public struct CopilotProvider: UsageProvider {
-    public let id = ProviderID.copilot
+    public let info = ProviderInfo(id: .copilot, displayName: "Copilot", requirement: "GitHub CLI 로그인 (gh)", icon: .bundled(.copilot))
 
     static let userURL = URL(string: "https://api.github.com/copilot_internal/user")!
     static var copilotConfigDirectory: String { "\(CLILocator.home)/.config/github-copilot" }

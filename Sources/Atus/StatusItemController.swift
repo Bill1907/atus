@@ -65,7 +65,7 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private func render(entries: [(id: ProviderID, text: String)], title: String) {
+    private func render(entries: [(info: ProviderInfo, text: String)], title: String) {
         guard let button = statusItem.button else { return }
         button.image = Self.labelImage(entries: entries)
         button.setAccessibilityLabel(title)
@@ -74,10 +74,10 @@ final class StatusItemController: NSObject {
 
     /// Lays out one "logo + percent" row per provider, two rows per column, into a
     /// template image so the menu bar tints it for light and dark mode.
-    static func labelImage(entries: [(id: ProviderID, text: String)]) -> NSImage {
+    static func labelImage(entries: [(info: ProviderInfo, text: String)]) -> NSImage {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .semibold)
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.black]
-        let rows = entries.map { (logo: ProviderLogo.image(for: $0.id), text: NSAttributedString(string: $0.text, attributes: attributes)) }
+        let rows = entries.map { (logo: ProviderLogo.image(for: $0.info.icon), text: NSAttributedString(string: $0.text, attributes: attributes)) }
         let columns = stride(from: 0, to: rows.count, by: 2).map { Array(rows[$0..<min($0 + 2, rows.count)]) }
         let lineHeight = ceil(font.ascender - font.descender)
         let logoSize = lineHeight - 1.5
@@ -94,7 +94,8 @@ final class StatusItemController: NSObject {
             for (column, columnWidth) in zip(columns, columnWidths) {
                 var y = (height - lineHeight * CGFloat(column.count)) / 2
                 for row in column {
-                    let logoRect = NSRect(x: x, y: y + (lineHeight - logoSize) / 2, width: logoSize, height: logoSize)
+                    let logoBox = NSRect(x: x, y: y + (lineHeight - logoSize) / 2, width: logoSize, height: logoSize)
+                    let logoRect = ProviderLogo.aspectFit(row.logo.size, in: logoBox)
                     row.logo.draw(in: logoRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
                     row.text.draw(at: NSPoint(x: x + textX, y: y))
                     y += lineHeight

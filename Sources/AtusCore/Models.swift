@@ -1,34 +1,43 @@
 import Foundation
 
-/// Supported services, in the order they appear in the panel and menu bar.
-public enum ProviderID: String, Sendable, CaseIterable, Identifiable {
-    case claude
-    case codex
-    case grok
-    case cursor
-    case copilot
+/// Identifies a provider: one of the built-ins below, or a user plugin's `id`.
+public struct ProviderID: RawRepresentable, Hashable, Sendable, Identifiable {
+    public let rawValue: String
+
+    public init(rawValue: String) { self.rawValue = rawValue }
+    public init(_ rawValue: String) { self.rawValue = rawValue }
 
     public var id: String { rawValue }
 
-    public var displayName: String {
-        switch self {
-        case .claude: "Claude"
-        case .codex: "Codex"
-        case .grok: "Grok"
-        case .cursor: "Cursor"
-        case .copilot: "Copilot"
-        }
-    }
+    public static let claude = ProviderID("claude")
+    public static let codex = ProviderID("codex")
+    public static let grok = ProviderID("grok")
+    public static let cursor = ProviderID("cursor")
+    public static let copilot = ProviderID("copilot")
+}
 
-    /// What the user needs signed in for this provider to work.
-    public var requirement: String {
-        switch self {
-        case .claude: "Claude Code 로그인 (Pro/Max)"
-        case .codex: "Codex CLI 로그인 (ChatGPT)"
-        case .grok: "Grok CLI 로그인 (SuperGrok)"
-        case .cursor: "Cursor 앱 로그인"
-        case .copilot: "GitHub CLI 로그인 (gh)"
-        }
+/// How a provider's logo is drawn in the menu bar and panel.
+public enum ProviderIcon: Sendable, Equatable {
+    /// A logo shipped with atus.
+    case bundled(ProviderID)
+    /// An SF Symbol name, e.g. "sparkles".
+    case symbol(String)
+    /// Path to an SVG or PNG file; drawn as a monochrome template image.
+    case file(String)
+}
+
+public struct ProviderInfo: Sendable, Equatable, Identifiable {
+    public let id: ProviderID
+    public let displayName: String
+    /// What the user needs signed in or set up for this provider to work.
+    public let requirement: String
+    public let icon: ProviderIcon
+
+    public init(id: ProviderID, displayName: String, requirement: String, icon: ProviderIcon) {
+        self.id = id
+        self.displayName = displayName
+        self.requirement = requirement
+        self.icon = icon
     }
 }
 
@@ -82,16 +91,20 @@ public struct UsageSnapshot: Sendable, Equatable {
 }
 
 public protocol UsageProvider: Sendable {
-    var id: ProviderID { get }
+    var info: ProviderInfo { get }
     /// Cheap local check (credential file or CLI present), used to pick sensible
     /// defaults on first launch. Never does network I/O.
     var isDetected: Bool { get }
     func fetch() async throws -> UsageSnapshot
 }
 
+extension UsageProvider {
+    public var id: ProviderID { info.id }
+}
+
 public enum Providers {
-    /// One instance per supported provider, in `ProviderID` order.
-    public static let all: [any UsageProvider] = [
+    /// The providers built into atus, in display order. User plugins follow them.
+    public static let builtIn: [any UsageProvider] = [
         ClaudeProvider(), CodexProvider(), GrokProvider(), CursorProvider(), CopilotProvider(),
     ]
 }
@@ -102,6 +115,7 @@ public enum UsageError: LocalizedError, Sendable, Equatable {
     case http(status: Int, body: String)
     case invalidResponse(String)
     case timeout(String)
+    case pluginFailed(String)
 
     public var errorDescription: String? {
         switch self {
@@ -110,6 +124,7 @@ public enum UsageError: LocalizedError, Sendable, Equatable {
         case .http(let status, let body): "HTTP \(status): \(body.prefix(160))"
         case .invalidResponse(let detail): "응답 해석 실패: \(detail)"
         case .timeout(let what): "시간 초과: \(what)"
+        case .pluginFailed(let message): "플러그인 오류: \(message.prefix(200))"
         }
     }
 }

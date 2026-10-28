@@ -1,33 +1,59 @@
 import AppKit
 import AtusCore
 
-/// Monochrome provider logos for the menu bar label and panel, drawn as template images.
+/// Provider logos for the menu bar label and panel, drawn as monochrome template images.
 ///
-/// The logos are trademarks of their owners (Anthropic, OpenAI, xAI, Anysphere, GitHub)
-/// and only identify which service a number belongs to. Sources: Simple Icons (CC0)
-/// for Claude, Cursor and GitHub Copilot; LobeHub Icons (MIT) for Codex (the OpenAI mark) and Grok.
-/// See THIRD_PARTY_NOTICES.md.
+/// Built-in logos are trademarks of their owners (Anthropic, OpenAI, xAI, Anysphere,
+/// GitHub) and only identify which service a number belongs to. Sources: Simple Icons
+/// (CC0) for Claude, Cursor and GitHub Copilot; LobeHub Icons (MIT) for Codex (the
+/// OpenAI mark) and Grok. See THIRD_PARTY_NOTICES.md. Plugins use an SF Symbol or
+/// their own image file.
 enum ProviderLogo {
     @MainActor private static var cache: [ProviderID: NSImage] = [:]
+    static let pluginFallbackSymbol = "puzzlepiece.extension"
 
     @MainActor
-    static func image(for id: ProviderID) -> NSImage {
-        if let cached = cache[id] { return cached }
-        guard let image = NSImage(data: Data(svg(for: id).utf8)) else {
-            preconditionFailure("invalid embedded SVG for \(id)")
+    static func image(for icon: ProviderIcon) -> NSImage {
+        let image: NSImage
+        switch icon {
+        case .bundled(let id):
+            if let cached = cache[id] { return cached }
+            guard let svg = svg(for: id), let decoded = NSImage(data: Data(svg.utf8)) else {
+                return fallback()
+            }
+            decoded.isTemplate = true
+            cache[id] = decoded
+            return decoded
+        case .symbol(let name):
+            image = NSImage(systemSymbolName: name, accessibilityDescription: nil) ?? fallback()
+        case .file(let path):
+            // Not cached, so editing the file shows up on the next refresh.
+            image = NSImage(contentsOfFile: path) ?? fallback()
         }
         image.isTemplate = true
-        cache[id] = image
         return image
     }
 
-    private static func svg(for id: ProviderID) -> String {
+    private static func fallback() -> NSImage {
+        NSImage(systemSymbolName: pluginFallbackSymbol, accessibilityDescription: nil)!
+    }
+
+    /// Largest rect with the image's aspect ratio that fits in `rect`, centered.
+    static func aspectFit(_ size: NSSize, in rect: NSRect) -> NSRect {
+        guard size.width > 0, size.height > 0 else { return rect }
+        let scale = min(rect.width / size.width, rect.height / size.height)
+        let fitted = NSSize(width: size.width * scale, height: size.height * scale)
+        return NSRect(x: rect.midX - fitted.width / 2, y: rect.midY - fitted.height / 2, width: fitted.width, height: fitted.height)
+    }
+
+    private static func svg(for id: ProviderID) -> String? {
         switch id {
         case .claude: claude
         case .codex: codex
         case .grok: grok
         case .cursor: cursor
         case .copilot: copilot
+        default: nil
         }
     }
 

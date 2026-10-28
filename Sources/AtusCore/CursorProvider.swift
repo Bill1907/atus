@@ -5,7 +5,7 @@ import SQLite3
 /// session Cursor.app keeps in its local state database. The database is opened
 /// read-only and the token is never refreshed or written back.
 public struct CursorProvider: UsageProvider {
-    public let id = ProviderID.cursor
+    public let info = ProviderInfo(id: .cursor, displayName: "Cursor", requirement: "Cursor 앱 로그인", icon: .bundled(.cursor))
 
     static let summaryURL = URL(string: "https://cursor.com/api/usage-summary")!
     static var databasePath: String {

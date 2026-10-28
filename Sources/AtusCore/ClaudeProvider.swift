@@ -4,7 +4,7 @@ import Foundation
 /// The OAuth token is the one Claude Code keeps in the login keychain; atus only
 /// reads it and never refreshes it, so Claude Code's own login is never disturbed.
 public struct ClaudeProvider: UsageProvider {
-    public let id = ProviderID.claude
+    public let info = ProviderInfo(id: .claude, displayName: "Claude", requirement: "Claude Code 로그인 (Pro/Max)", icon: .bundled(.claude))
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     static let keychainService = "Claude Code-credentials"

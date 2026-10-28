@@ -22,11 +22,55 @@ Each tracked service gets a logo and a percentage in the menu bar. Click it for 
 
 ## Choosing services
 
-On first launch atus turns on every service whose app or CLI it finds set up on your Mac. Upgrades from 0.1.x keep Claude and Grok. To change the selection, open the panel and expand **서비스 선택** (choose services), then tick the ones you want. At least one stays on.
+On first launch atus turns on every service whose app or CLI it finds set up on your Mac. Upgrades from 0.1.x keep Claude and Grok. To change the selection, open the panel and expand **서비스 선택** (choose services), then tick the ones you want. At least one stays on. Services atus doesn't support yet can be added as [plugins](#plugins-any-other-service).
 
 The menu bar shows the tracked services two rows per column. More services make the label wider, which matters on a MacBook with a notch. On first launch atus places itself at the right end of the menu bar items. After that it stays wherever you ⌘-drag it, or wherever Ice or Bartender puts it.
 
 Each number is the window closest to its limit, since that is the one that stops you first. A `!` after a number means the last refresh failed and the value shown is the last good one. Open the panel to see why.
+
+## Plugins: any other service
+
+Any service can be added with a small script: atus runs it and reads usage from the JSON it prints. A plugin then appears in the menu bar, the panel, and **서비스 선택** like a built-in service. Since the script, not atus, decides how to authenticate, you stay in control of credentials and of each vendor's terms.
+
+1. Write a script that prints:
+   ```json
+   {
+     "plan": "Pro",
+     "windows": [
+       { "label": "5h", "percent": 42, "resetsAt": "2026-10-28T12:00:00Z" },
+       { "label": "week", "percent": 18 }
+     ],
+     "details": [{ "label": "Credits", "value": "$12.00" }]
+   }
+   ```
+   - `windows` are the limits. `percent` is how much is used (0–100), and the menu bar shows the highest one.
+   - `resetsAt` is optional and may be ISO-8601 or Unix seconds.
+   - `plan` and `details` are optional extra lines in the panel.
+   - On failure, print a short reason to stderr and exit non-zero. The panel shows the last stderr line.
+
+   [`examples/plugins/demo.sh`](examples/plugins/demo.sh) is a starting point.
+2. Register it in `~/.config/atus/providers.json`. **서비스 선택 → 플러그인 설정 열기** creates and opens the file.
+   ```json
+   {
+     "providers": [
+       { "id": "demo", "name": "Demo", "command": "~/atus-plugins/demo.sh", "icon": "sparkles" }
+     ]
+   }
+   ```
+   | Field | |
+   |---|---|
+   | `id` | Unique, and not one of the built-in IDs (`claude`, `codex`, `grok`, `cursor`, `copilot`). |
+   | `name` | Shown in the panel. |
+   | `command` | Run with `/bin/sh -c` from your home directory, with `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin` on `PATH`. |
+   | `icon` | Optional. An [SF Symbol](https://developer.apple.com/sf-symbols/) name, or the path to an SVG or PNG (drawn monochrome). The default is a puzzle piece. |
+   | `requirement` | Optional caption under the name in **서비스 선택**. |
+   | `timeout` | Optional, in seconds. The default is 30. |
+
+atus re-reads the file on every refresh (⌘R in the panel). New plugins start enabled. Mistakes in the file are listed under **서비스 선택**, and the valid entries still load.
+
+### Why Google Gemini is not built in
+
+Google's [Gemini CLI FAQ](https://geminicli.com/docs/resources/faq/) forbids third-party tools from reusing Gemini CLI or Antigravity OAuth credentials to reach Google's backend. It names account suspension as a consequence, and suspensions have been reported, including for paid accounts. That rules out the token reuse other usage trackers rely on, so atus doesn't ship it. If you still want Gemini in your menu bar, a plugin lets you decide how to get the numbers and take that call yourself.
 
 ## Requirements
 
@@ -55,7 +99,7 @@ atus does not update itself. Download the latest `Atus.dmg` and replace the app 
 
 1. In the panel, turn off **로그인 시 자동 실행** if you turned it on, then click **종료** (quit).
 2. Delete `/Applications/Atus.app`.
-3. Optional: remove its preferences with `defaults delete com.boseongkim.atus`.
+3. Optional: remove its preferences with `defaults delete com.boseongkim.atus`, and `~/.config/atus` if you added plugins.
 
 atus stores nothing else. It never writes to any service's login files.
 
@@ -121,9 +165,11 @@ Layout:
 
 ### Adding a service
 
-1. Add a case to `ProviderID` in `Sources/AtusCore/Models.swift`, with its `displayName` and `requirement`.
-2. Implement `UsageProvider` in a new `Sources/AtusCore/<Name>Provider.swift`. `isDetected` is a cheap local file check; `fetch()` returns a `UsageSnapshot`. Read the vendor's own login and never write it back. Keep response mapping in a `static func snapshot(from:fetchedAt:)` so it can be unit-tested.
-3. Register it in `Providers.all`.
+Built-in services live in `Sources/AtusCore`. For a personal or experimental one, a [plugin](#plugins-any-other-service) is usually enough.
+
+1. Add a `ProviderID` constant in `Sources/AtusCore/Models.swift`.
+2. Implement `UsageProvider` in a new `Sources/AtusCore/<Name>Provider.swift`. `info` holds the display name, requirement caption, and `.bundled` icon. `isDetected` is a cheap local file check, and `fetch()` returns a `UsageSnapshot`. Read the vendor's own login and never write it back. Keep response mapping in a `static func snapshot(from:fetchedAt:)` so it can be unit-tested.
+3. Register it in `Providers.builtIn`.
 4. Add a monochrome SVG logo to `Sources/Atus/ProviderLogo.swift` and credit its source in `THIRD_PARTY_NOTICES.md`.
 5. Add a mapping test with a sanitized real response to `Tests/AtusCoreTests`.
 

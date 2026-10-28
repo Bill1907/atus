@@ -4,7 +4,7 @@ import Foundation
 /// (`account/rateLimits/read`). The CLI owns `~/.codex/auth.json` and refreshes it,
 /// so atus never touches the token.
 public struct CodexProvider: UsageProvider {
-    public let id = ProviderID.codex
+    public let info = ProviderInfo(id: .codex, displayName: "Codex", requirement: "Codex CLI 로그인 (ChatGPT)", icon: .bundled(.codex))
 
     public init() {}
 

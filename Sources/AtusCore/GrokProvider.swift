@@ -7,7 +7,7 @@ import Foundation
 /// expired (or rejected) atus asks `grok agent stdio` for `_x.ai/billing`; the CLI
 /// handles its own token refresh and atus never touches the rotating refresh token.
 public struct GrokProvider: UsageProvider {
-    public let id = ProviderID.grok
+    public let info = ProviderInfo(id: .grok, displayName: "Grok", requirement: "Grok CLI 로그인 (SuperGrok)", icon: .bundled(.grok))
 
     static let billingURL = URL(string: "https://cli-chat-proxy.grok.com/v1/billing?format=credits")!
 
