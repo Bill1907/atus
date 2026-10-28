@@ -87,13 +87,10 @@ Layout:
 
 One-time setup on the maintainer's Mac:
 
-1. Create a **Developer ID Application** certificate: Xcode → Settings → Accounts → Manage Certificates → + → Developer ID Application. Only the team's Account Holder can create it.
-2. Store notarization credentials, using an [app-specific password](https://account.apple.com):
-   ```sh
-   xcrun notarytool store-credentials atus-notary \
-     --apple-id <apple-id-email> --team-id <TEAMID> --password <app-specific-password>
-   ```
-3. Log in to the `gh` CLI with push access to this repo.
+1. A **Developer ID Application** certificate and its private key, exported as a `.p12`. Only the team's Account Holder can create the certificate.
+2. An **App Store Connect API key** (`.p8`) for notarization: App Store Connect → Users and Access → Integrations → Team Keys.
+3. `cp release.env.example release.env` and point it at those files. `release.env` is git-ignored.
+4. Log in to the `gh` CLI with push access to this repo.
 
 Then, from a clean `main`:
 
@@ -101,7 +98,7 @@ Then, from a clean `main`:
 ./scripts/release.sh 0.1.0
 ```
 
-This runs the tests, builds a universal app, signs it with the hardened runtime, and notarizes and staples both the app and `Atus.dmg`. It then tags `v0.1.0` and uploads the DMG to a GitHub release. The README download link always points at the latest release.
+This runs the tests and imports the `.p12` into a throwaway keychain, so the login keychain is never touched. It then builds a universal app, signs it with the hardened runtime, and notarizes and staples both the app and `Atus.dmg`. Finally it tags `v0.1.0` and uploads the DMG to a GitHub release. The README download link always points at the latest release.
 
 ## License
 
