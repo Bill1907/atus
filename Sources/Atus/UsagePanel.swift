@@ -1,4 +1,5 @@
 import AtusCore
+import ServiceManagement
 import SwiftUI
 
 struct UsagePanel: View {
@@ -11,6 +12,7 @@ struct UsagePanel: View {
                 if id != store.providerIDs.last { Divider() }
             }
             Divider()
+            LaunchAtLoginToggle()
             footer
         }
         .padding(14)
@@ -36,6 +38,34 @@ struct UsagePanel: View {
                 .keyboardShortcut("q")
         }
         .font(.caption)
+    }
+}
+
+/// Registers the installed app as a login item (System Settings → General → Login Items).
+private struct LaunchAtLoginToggle: View {
+    @State private var isEnabled = SMAppService.mainApp.status == .enabled
+    @State private var error: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("로그인 시 자동 실행", isOn: Binding(get: { isEnabled }, set: setEnabled))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+            if let error {
+                Text(error).font(.caption2).foregroundStyle(.orange)
+            }
+        }
+        .font(.caption)
+    }
+
+    private func setEnabled(_ enable: Bool) {
+        do {
+            if enable { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isEnabled = SMAppService.mainApp.status == .enabled
     }
 }
 
