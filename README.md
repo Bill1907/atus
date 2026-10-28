@@ -237,6 +237,8 @@ atus is in the menu bar but you can't see it? On a MacBook with a notch, macOS h
 
 ## Development
 
+Contributor and coding-agent notes, including rules that are easy to break, are in [AGENTS.md](AGENTS.md). Planned work is in [TODO.md](TODO.md).
+
 ```sh
 swift test                      # parsing tests
 swift run Atus                  # run without bundling
