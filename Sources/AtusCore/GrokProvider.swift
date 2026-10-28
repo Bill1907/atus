@@ -15,7 +15,12 @@ public struct GrokProvider: UsageProvider {
     public init() {}
 
     public func fetch() async throws -> UsageSnapshot {
-        if let token = try? Self.loadToken(), token.expiresAt.map({ $0 > Date().addingTimeInterval(60) }) ?? true {
+        // Without ~/.grok/auth.json the CLI fallback cannot authenticate either, so say
+        // "log in" instead of surfacing the agent's opaque billing error.
+        guard let token = try? Self.loadToken() else {
+            throw UsageError.credentialsMissing("`grok login`을 실행하세요")
+        }
+        if token.expiresAt.map({ $0 > Date().addingTimeInterval(60) }) ?? true {
             do {
                 return try await fetchREST(token: token.value)
             } catch UsageError.tokenExpired {

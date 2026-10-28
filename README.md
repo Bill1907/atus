@@ -11,7 +11,7 @@ The menu bar shows two stacked rows, each with the provider's logo and a percent
 | Provider | Source of truth | Shown |
 |---|---|---|
 | Claude (Pro / Max) | Claude Code login | 5-hour session %, weekly %, per-model weekly % (if your plan has them), weekly usage by product, extra-usage spend |
-| Grok (SuperGrok / X Premium) | Grok CLI login | weekly pool %, usage by product, extra-usage credit balance, plan |
+| Grok (SuperGrok / X Premium) | Grok CLI login | weekly pool %, usage by product, extra-usage credit balance, plan name (product split and plan name depend on which Grok source answered; see [How it works](#how-it-works)) |
 
 The label is two short stacked rows, so it fits next to the notch on crowded MacBook menu bars. On first launch atus places itself at the right end of the menu bar items. After that it stays wherever you ⌘-drag it, or wherever Ice or Bartender puts it.
 
@@ -34,9 +34,21 @@ You only need the CLIs for the providers you use. A provider without a login sho
 
 Releases are signed with a Developer ID and notarized by Apple, so the app opens without Gatekeeper warnings.
 
+### Update
+
+atus does not update itself. Download the latest `Atus.dmg` and replace the app in Applications. Your settings and menu bar position are kept.
+
+### Uninstall
+
+1. In the panel, turn off **로그인 시 자동 실행** if you turned it on, then click **종료** (quit).
+2. Delete `/Applications/Atus.app`.
+3. Optional: remove its preferences with `defaults delete com.boseongkim.atus`.
+
+atus stores nothing else. It never writes to the Claude Code or Grok CLI login files.
+
 ### Build from source
 
-Requires Xcode 16 or later (Swift 6).
+Requires Xcode 26 or later (CI builds with Xcode 26.6).
 
 ```sh
 git clone https://github.com/Bill1907/atus.git
@@ -46,25 +58,30 @@ cd atus
 
 ## How it works
 
-atus refreshes every 5 minutes, when the panel opens, after the Mac wakes, and on ⌘R.
+atus refreshes every 5 minutes, after the Mac wakes, when you open the panel (if the data is more than a minute old), and on ⌘R while the panel is open.
 
 - **Claude** reads the OAuth token Claude Code keeps in the login keychain (`Claude Code-credentials`) through `/usr/bin/security`, then calls `GET https://api.anthropic.com/api/oauth/usage`, the endpoint behind Claude Code's `/usage`.
-- **Grok** reads the token in `~/.grok/auth.json` and calls `GET https://cli-chat-proxy.grok.com/v1/billing?format=credits`, the endpoint behind Grok CLI's `/usage`. That token lasts about six hours. Once it expires, atus asks `grok agent stdio` for `_x.ai/billing` and lets the CLI refresh its own login.
+- **Grok** reads the token in `~/.grok/auth.json` and calls `GET https://cli-chat-proxy.grok.com/v1/billing?format=credits`, the endpoint behind Grok CLI's `/usage`. This response includes the per-product split but not the plan name. The token lasts about six hours. Once it expires, atus asks `grok agent stdio` for `_x.ai/billing` instead, and the Grok CLI handles its own login. That response includes the plan name but no per-product split.
 
 Privacy and safety:
 
-- Tokens are only read. atus never refreshes or rewrites them, so your Claude Code and Grok CLI logins are left untouched.
+- atus only reads tokens. It never refreshes, rewrites, or copies them anywhere.
 - Requests go straight from your Mac to Anthropic and xAI. There is no atus server and no telemetry.
 - Both endpoints are undocumented internal APIs and can change without notice. If one breaks, the app keeps the last value and shows the error.
 
 ## Troubleshooting
 
-| Message | Fix |
+The panel shows the error under the provider's name; the menu bar adds `!` to that number.
+
+| Panel message | Fix |
 |---|---|
-| Claude `토큰 만료` (token expired) | Run `claude` once; Claude Code refreshes its token. |
-| Claude `로그인 정보 없음` (no login) | Log in to Claude Code with `/login`. |
-| Grok `grok CLI를 찾을 수 없어요` (CLI not found) | Install the Grok CLI. atus looks in `~/.grok/bin`, `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`. |
-| Grok `로그인 정보 없음` (no login) | Run `grok login`. |
+| Claude `토큰 만료: Claude Code를 한 번 실행하면 갱신돼요` (token expired) | Run `claude` once; Claude Code refreshes its token. |
+| Claude `로그인 정보 없음: Claude Code에 로그인하세요` (no login) | Install Claude Code and log in with `/login`. |
+| Grok `로그인 정보 없음: grok login을 실행하세요` (no login) | Run `grok login`. |
+| Grok `로그인 정보 없음: grok CLI를 찾을 수 없어요` (CLI not found) | The token has expired and atus can't find the Grok CLI. Install it; atus looks in `~/.grok/bin`, `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`. |
+| `HTTP 4xx/5xx` or `응답 해석 실패` (could not parse response) | The vendor endpoint changed or is down. Please [open an issue](https://github.com/Bill1907/atus/issues). |
+
+atus is in the menu bar but you can't see it? On a MacBook with a notch, macOS hides the leftmost items when the menu bar is full. ⌘-drag atus further right, or move it to the visible section in Ice or Bartender.
 
 ## Development
 
@@ -78,8 +95,8 @@ swift scripts/make-icon.swift   # regenerate Resources/AppIcon.icns
 Layout:
 
 - `Sources/AtusCore`: providers and response parsing; no UI code
-- `Sources/Atus`: SwiftUI `MenuBarExtra` app
-- `scripts/`: bundling, DMG, and release scripts
+- `Sources/Atus`: AppKit status item with a SwiftUI panel (`main.swift`, `StatusItemController.swift`, `UsagePanel.swift`)
+- `scripts/`: bundling, icon, DMG, and release scripts
 
 ## Releasing
 
