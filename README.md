@@ -4,6 +4,10 @@ A macOS menu bar app that shows how much of your **Claude** and **Grok** subscri
 
 The menu bar shows two stacked rows, each with the provider's logo and a percentage (Claude 46%, Grok 21%). Click it for the details: Claude's 5-hour session and weekly windows, Grok's weekly pool, per-product breakdowns, extra-usage credits, and a countdown to each reset.
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="atus menu bar label with Claude and Grok logos, and its panel showing Claude's 5-hour and weekly limits and Grok's weekly pool" width="340">
+</p>
+
 > The UI is currently in Korean.
 
 ## What it shows
