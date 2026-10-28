@@ -84,12 +84,90 @@ import Testing
     }
 
     @Test func extractsBillingResultFromAgentRPCStream() throws {
-        #expect(try GrokProvider.billingPayload(fromRPCLine: #"{"jsonrpc":"2.0","id":1,"result":{}}"#) == nil)
-        #expect(try GrokProvider.billingPayload(fromRPCLine: #"{"jsonrpc":"2.0","method":"_x.ai/announcements/update","params":{}}"#) == nil)
-        let payload = try #require(try GrokProvider.billingPayload(fromRPCLine: #"{"jsonrpc":"2.0","id":2,"result":{"config":{"creditUsagePercent":21.0}}}"#))
+        let method = "_x.ai/billing"
+        #expect(try StdioJSONRPC.result(fromLine: #"{"jsonrpc":"2.0","id":1,"result":{}}"#, id: 2, method: method) == nil)
+        #expect(try StdioJSONRPC.result(fromLine: #"{"jsonrpc":"2.0","method":"_x.ai/announcements/update","params":{}}"#, id: 2, method: method) == nil)
+        let payload = try #require(try StdioJSONRPC.result(fromLine: #"{"jsonrpc":"2.0","id":2,"result":{"config":{"creditUsagePercent":21.0}}}"#, id: 2, method: method))
         #expect(try GrokProvider.snapshot(from: payload, fetchedAt: .now).headlinePercent == 21)
         #expect(throws: UsageError.self) {
-            try GrokProvider.billingPayload(fromRPCLine: #"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"auth"}}"#)
+            try StdioJSONRPC.result(fromLine: #"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"auth"}}"#, id: 2, method: method)
         }
+    }
+}
+
+@Suite struct CodexMappingTests {
+    @Test func mapsPrimaryAndSecondaryWindows() throws {
+        let json = """
+        {"rateLimits": {
+          "primary": {"usedPercent": 12, "windowDurationMins": 300, "resetsAt": 1795766500},
+          "secondary": {"usedPercent": 40, "windowDurationMins": 10080, "resetsAt": 1796000000},
+          "credits": {"hasCredits": true, "unlimited": false, "balance": "120"},
+          "planType": "plus"
+        }}
+        """
+        let snapshot = try CodexProvider.snapshot(from: Data(json.utf8), fetchedAt: .now)
+
+        #expect(snapshot.windows.map(\.label) == ["5시간", "주간"])
+        #expect(snapshot.headlinePercent == 40)
+        #expect(snapshot.windows.first?.resetsAt == Date(timeIntervalSince1970: 1795766500))
+        #expect(snapshot.plan == "Plus")
+        #expect(snapshot.details == [UsageDetail(label: "크레딧", value: "120")])
+    }
+
+    @Test func mapsFreePlanThirtyDayWindowWithoutSecondary() throws {
+        let json = """
+        {"rateLimits": {"primary": {"usedPercent": 0, "windowDurationMins": 43200, "resetsAt": 1795766500},
+         "secondary": null, "credits": {"hasCredits": false, "unlimited": false, "balance": null}, "planType": "free"}}
+        """
+        let snapshot = try CodexProvider.snapshot(from: Data(json.utf8), fetchedAt: .now)
+
+        #expect(snapshot.windows.map(\.label) == ["30일"])
+        #expect(snapshot.details.isEmpty)
+    }
+}
+
+@Suite struct CursorMappingTests {
+    @Test func mapsUsageSummary() throws {
+        let json = """
+        {"billingCycleEnd": "2026-11-01T00:00:00.000Z", "membershipType": "premium",
+         "individualUsage": {
+           "plan": {"enabled": true, "used": 1234, "limit": 4615, "autoPercentUsed": 10, "apiPercentUsed": 30, "totalPercentUsed": 26.7},
+           "onDemand": {"enabled": false, "used": 0, "limit": null}}}
+        """
+        let snapshot = try CursorProvider.snapshot(from: Data(json.utf8), fetchedAt: .now)
+
+        #expect(snapshot.headlinePercent == 26.7)
+        #expect(snapshot.windows.first?.resetsAt == ISODate.parse("2026-11-01T00:00:00Z"))
+        #expect(snapshot.plan == "Premium")
+        #expect(snapshot.details.contains(UsageDetail(label: "포함 사용량", value: "$12.34 / $46.15")))
+        #expect(snapshot.details.contains(UsageDetail(label: "추가 사용량", value: "꺼짐")))
+    }
+
+    @Test func readsSubjectAndExpiryFromJWT() throws {
+        // {"sub":"google-oauth2|user_123","exp":1798248843}
+        let token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJnb29nbGUtb2F1dGgyfHVzZXJfMTIzIiwiZXhwIjoxNzk4MjQ4ODQzfQ.sig"
+        let claims = try #require(CursorProvider.jwtClaims(token))
+        #expect(claims.sub == "google-oauth2|user_123")
+        #expect(claims.exp == 1798248843)
+    }
+}
+
+@Suite struct CopilotMappingTests {
+    @Test func skipsUnlimitedAndNotIncludedQuotas() throws {
+        let json = """
+        {"access_type_sku": "free_limited_copilot", "copilot_plan": "individual",
+         "quota_reset_date_utc": "2026-11-01T00:00:00.000Z",
+         "quota_snapshots": {
+           "chat": {"percent_remaining": 75.0, "unlimited": false, "entitlement": 200, "remaining": 150},
+           "completions": {"percent_remaining": 100.0, "unlimited": true, "entitlement": 0, "remaining": 0},
+           "premium_interactions": {"percent_remaining": 0.0, "unlimited": false, "entitlement": 0, "remaining": 0}}}
+        """
+        let snapshot = try CopilotProvider.snapshot(from: Data(json.utf8), fetchedAt: .now)
+
+        #expect(snapshot.windows.map(\.label) == ["채팅"])
+        #expect(snapshot.headlinePercent == 25)
+        #expect(snapshot.windows.first?.resetsAt == ISODate.parse("2026-11-01T00:00:00Z"))
+        #expect(snapshot.details == [UsageDetail(label: "채팅 남음", value: "150 / 200")])
+        #expect(snapshot.plan == "Free")
     }
 }

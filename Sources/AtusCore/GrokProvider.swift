@@ -10,9 +10,12 @@ public struct GrokProvider: UsageProvider {
     public let id = ProviderID.grok
 
     static let billingURL = URL(string: "https://cli-chat-proxy.grok.com/v1/billing?format=credits")!
-    static let agentTimeout: Duration = .seconds(45)
 
     public init() {}
+
+    public var isDetected: Bool {
+        FileManager.default.fileExists(atPath: "\(CLILocator.home)/.grok/auth.json")
+    }
 
     public func fetch() async throws -> UsageSnapshot {
         // Without ~/.grok/auth.json the CLI fallback cannot authenticate either, so say
@@ -74,79 +77,25 @@ public struct GrokProvider: UsageProvider {
 
     // MARK: - grok agent stdio
 
-    /// `Process` is not Sendable; the box lets the timeout task terminate it.
-    private final class ProcessBox: @unchecked Sendable {
-        let process = Process()
-    }
-
     func fetchViaAgent() async throws -> UsageSnapshot {
         guard let binary = Self.grokBinary() else {
             throw UsageError.credentialsMissing("grok CLI를 찾을 수 없어요 (~/.grok/bin/grok)")
         }
-
-        let box = ProcessBox()
-        let process = box.process
-        process.executableURL = binary
-        process.arguments = ["agent", "stdio"]
-        var environment = ProcessInfo.processInfo.environment
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        environment["PATH"] = "\(home)/.local/bin:/opt/homebrew/bin:/usr/local/bin:" + (environment["PATH"] ?? "/usr/bin:/bin")
-        process.environment = environment
-        let stdin = Pipe()
-        let stdout = Pipe()
-        process.standardInput = stdin
-        process.standardOutput = stdout
-        process.standardError = FileHandle.nullDevice
-
-        try process.run()
-        defer {
-            if process.isRunning { process.terminate() }
-        }
-
-        let requests = [
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"atus","version":"0.1"}}}"#,
-            #"{"jsonrpc":"2.0","id":2,"method":"_x.ai/billing","params":{}}"#,
-        ]
-        stdin.fileHandleForWriting.write(Data((requests.joined(separator: "\n") + "\n").utf8))
-
-        let reader = stdout.fileHandleForReading
-        let result: Data = try await withThrowingTaskGroup(of: Data.self) { group in
-            group.addTask {
-                for try await line in reader.bytes.lines {
-                    if let payload = try Self.billingPayload(fromRPCLine: line) { return payload }
-                }
-                throw UsageError.invalidResponse("grok agent가 응답 없이 종료됨")
-            }
-            group.addTask {
-                try await Task.sleep(for: Self.agentTimeout)
-                // Closing the agent's stdout ends the reader loop above.
-                box.process.terminate()
-                throw UsageError.timeout("grok agent stdio")
-            }
-            let first = try await group.next()!
-            group.cancelAll()
-            return first
-        }
+        let result = try await StdioJSONRPC.call(
+            executable: binary,
+            arguments: ["agent", "stdio"],
+            messages: [
+                #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"atus","version":"0.1"}}}"#,
+                #"{"jsonrpc":"2.0","id":2,"method":"_x.ai/billing","params":{}}"#,
+            ],
+            resultID: 2,
+            method: "_x.ai/billing"
+        )
         return try Self.snapshot(from: result, fetchedAt: Date())
     }
 
-    /// Returns the JSON `result` of the `_x.ai/billing` call (id 2), or nil for other lines.
-    static func billingPayload(fromRPCLine line: String) throws -> Data? {
-        guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-              (object["id"] as? Int) == 2
-        else { return nil }
-        if let result = object["result"] {
-            return try JSONSerialization.data(withJSONObject: result)
-        }
-        let message = (object["error"] as? [String: Any])?["message"] as? String ?? "unknown error"
-        throw UsageError.invalidResponse("_x.ai/billing: \(message)")
-    }
-
     static func grokBinary() -> URL? {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return ["\(home)/.grok/bin/grok", "\(home)/.local/bin/grok", "/opt/homebrew/bin/grok", "/usr/local/bin/grok"]
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
-            .map { URL(fileURLWithPath: $0) }
+        CLILocator.find("grok", preferring: ["\(CLILocator.home)/.grok/bin"])
     }
 
     // MARK: - Response mapping

@@ -33,7 +33,10 @@ final class StatusItemController: NSObject {
         super.init()
 
         popover.behavior = .transient
-        popover.contentViewController = NSHostingController(rootView: UsagePanel(store: store))
+        let hostingController = NSHostingController(rootView: UsagePanel(store: store))
+        // Resize the popover when the panel grows (provider picker expanded, providers added).
+        hostingController.sizingOptions = .preferredContentSize
+        popover.contentViewController = hostingController
 
         if let button = statusItem.button {
             button.target = self
@@ -69,25 +72,34 @@ final class StatusItemController: NSObject {
         button.toolTip = title
     }
 
-    /// Stacks one "logo + percent" row per provider into a template image, so the
-    /// menu bar tints it for light and dark mode.
+    /// Lays out one "logo + percent" row per provider, two rows per column, into a
+    /// template image so the menu bar tints it for light and dark mode.
     static func labelImage(entries: [(id: ProviderID, text: String)]) -> NSImage {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .semibold)
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.black]
         let rows = entries.map { (logo: ProviderLogo.image(for: $0.id), text: NSAttributedString(string: $0.text, attributes: attributes)) }
+        let columns = stride(from: 0, to: rows.count, by: 2).map { Array(rows[$0..<min($0 + 2, rows.count)]) }
         let lineHeight = ceil(font.ascender - font.descender)
         let logoSize = lineHeight - 1.5
         let textX = logoSize + 2.5
-        let width = ceil(textX + (rows.map { $0.text.size().width }.max() ?? 0))
-        let height = max(22, lineHeight * CGFloat(rows.count))
+        let columnSpacing: CGFloat = 6
+        let columnWidths = columns.map { column in
+            ceil(textX + (column.map { $0.text.size().width }.max() ?? 0))
+        }
+        let width = columnWidths.reduce(0, +) + columnSpacing * CGFloat(max(0, columns.count - 1))
+        let height = max(22, lineHeight * 2)
 
-        let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
-            var y = (height - lineHeight * CGFloat(rows.count)) / 2
-            for row in rows {
-                let logoRect = NSRect(x: 0, y: y + (lineHeight - logoSize) / 2, width: logoSize, height: logoSize)
-                row.logo.draw(in: logoRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-                row.text.draw(at: NSPoint(x: textX, y: y))
-                y += lineHeight
+        let image = NSImage(size: NSSize(width: max(width, 1), height: height), flipped: true) { _ in
+            var x: CGFloat = 0
+            for (column, columnWidth) in zip(columns, columnWidths) {
+                var y = (height - lineHeight * CGFloat(column.count)) / 2
+                for row in column {
+                    let logoRect = NSRect(x: x, y: y + (lineHeight - logoSize) / 2, width: logoSize, height: logoSize)
+                    row.logo.draw(in: logoRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                    row.text.draw(at: NSPoint(x: x + textX, y: y))
+                    y += lineHeight
+                }
+                x += columnWidth + columnSpacing
             }
             return true
         }

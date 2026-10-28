@@ -1,15 +1,33 @@
 import Foundation
 
+/// Supported services, in the order they appear in the panel and menu bar.
 public enum ProviderID: String, Sendable, CaseIterable, Identifiable {
     case claude
+    case codex
     case grok
+    case cursor
+    case copilot
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
         case .claude: "Claude"
+        case .codex: "Codex"
         case .grok: "Grok"
+        case .cursor: "Cursor"
+        case .copilot: "Copilot"
+        }
+    }
+
+    /// What the user needs signed in for this provider to work.
+    public var requirement: String {
+        switch self {
+        case .claude: "Claude Code 로그인 (Pro/Max)"
+        case .codex: "Codex CLI 로그인 (ChatGPT)"
+        case .grok: "Grok CLI 로그인 (SuperGrok)"
+        case .cursor: "Cursor 앱 로그인"
+        case .copilot: "GitHub CLI 로그인 (gh)"
         }
     }
 }
@@ -65,7 +83,17 @@ public struct UsageSnapshot: Sendable, Equatable {
 
 public protocol UsageProvider: Sendable {
     var id: ProviderID { get }
+    /// Cheap local check (credential file or CLI present), used to pick sensible
+    /// defaults on first launch. Never does network I/O.
+    var isDetected: Bool { get }
     func fetch() async throws -> UsageSnapshot
+}
+
+public enum Providers {
+    /// One instance per supported provider, in `ProviderID` order.
+    public static let all: [any UsageProvider] = [
+        ClaudeProvider(), CodexProvider(), GrokProvider(), CursorProvider(), CopilotProvider(),
+    ]
 }
 
 public enum UsageError: LocalizedError, Sendable, Equatable {

@@ -1,8 +1,8 @@
 # Third-party notices
 
-## Grok logo — LobeHub Icons
+## Grok and OpenAI (Codex) logos — LobeHub Icons
 
-Source: https://github.com/lobehub/lobe-icons (`@lobehub/icons-static-svg` 1.101.0, `icons/grok.svg`), embedded in `Sources/Atus/ProviderLogo.swift`.
+Source: https://github.com/lobehub/lobe-icons (`@lobehub/icons-static-svg` 1.101.0, `icons/grok.svg` and `icons/openai.svg`), embedded in `Sources/Atus/ProviderLogo.swift`.
 
 ```
 MIT License
@@ -28,8 +28,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Claude logo — Simple Icons
+## Claude, Cursor and GitHub Copilot logos — Simple Icons
 
-Source: https://github.com/simple-icons/simple-icons (`icons/claude.svg`), released under CC0 1.0 Universal.
+Source: https://github.com/simple-icons/simple-icons (`icons/claude.svg`, `icons/cursor.svg`, `icons/githubcopilot.svg`), released under CC0 1.0 Universal.
 
-Claude is a trademark of Anthropic, and Grok is a trademark of xAI.
+Claude, Codex, Grok, Cursor and GitHub Copilot are trademarks of Anthropic, OpenAI, xAI, Anysphere and GitHub.

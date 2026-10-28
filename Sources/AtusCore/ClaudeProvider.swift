@@ -11,6 +11,12 @@ public struct ClaudeProvider: UsageProvider {
 
     public init() {}
 
+    /// Claude Code keeps its login in the keychain; its config directory is the cheap,
+    /// prompt-free signal that it is installed.
+    public var isDetected: Bool {
+        FileManager.default.fileExists(atPath: "\(CLILocator.home)/.claude")
+    }
+
     public func fetch() async throws -> UsageSnapshot {
         let credentials = try Self.loadCredentials()
         if let expiresAt = credentials.expiresAt, expiresAt <= Date() {
@@ -56,7 +62,10 @@ public struct ClaudeProvider: UsageProvider {
     /// item's ACL and can read it without a keychain prompt. Reading it through
     /// SecItemCopyMatching from atus would prompt again after every rebuild.
     static func loadCredentials() throws -> Credentials {
-        let keychainJSON = try? runSecurity(["find-generic-password", "-s", keychainService, "-w"])
+        let keychainJSON = CLILocator.output(
+            of: URL(fileURLWithPath: "/usr/bin/security"),
+            ["find-generic-password", "-s", keychainService, "-w"]
+        )
         let fileURL = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".claude/.credentials.json")
         let candidates = [keychainJSON, try? Data(contentsOf: fileURL)].compactMap { $0 }
 
@@ -69,22 +78,6 @@ public struct ClaudeProvider: UsageProvider {
             )
         }
         throw UsageError.credentialsMissing("Claude Code에 로그인하세요 (`claude` → /login)")
-    }
-
-    private static func runSecurity(_ arguments: [String]) throws -> Data {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = arguments
-        let stdout = Pipe()
-        process.standardOutput = stdout
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
-            throw UsageError.credentialsMissing("keychain item \(keychainService)")
-        }
-        return data
     }
 
     static func planName(subscriptionType: String?, tier: String?) -> String? {
