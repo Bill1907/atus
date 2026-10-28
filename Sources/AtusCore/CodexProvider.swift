@@ -4,7 +4,7 @@ import Foundation
 /// (`account/rateLimits/read`). The CLI owns `~/.codex/auth.json` and refreshes it,
 /// so atus never touches the token.
 public struct CodexProvider: UsageProvider {
-    public let info = ProviderInfo(id: .codex, displayName: "Codex", requirement: "Codex CLI 로그인 (ChatGPT)", icon: .bundled(.codex))
+    public let info = ProviderInfo(id: .codex, displayName: "Codex", requirement: L("Codex CLI sign-in (ChatGPT)"), icon: .bundled(.codex))
 
     public init() {}
 
@@ -14,7 +14,7 @@ public struct CodexProvider: UsageProvider {
 
     public func fetch() async throws -> UsageSnapshot {
         guard let binary = CLILocator.find("codex") else {
-            throw UsageError.credentialsMissing("codex CLI를 찾을 수 없어요")
+            throw UsageError.credentialsMissing(L("codex CLI not found"))
         }
         let result = try await StdioJSONRPC.call(
             executable: binary,
@@ -66,31 +66,31 @@ public struct CodexProvider: UsageProvider {
         let windows = [limits.primary, limits.secondary].compactMap { window -> UsageWindow? in
             guard let window else { return nil }
             return UsageWindow(
-                label: window.windowDurationMins.map(windowLabel) ?? "사용량",
+                label: window.windowDurationMins.map(windowLabel) ?? L("Usage"),
                 percent: window.usedPercent,
                 resetsAt: window.resetsAt.map { Date(timeIntervalSince1970: $0) }
             )
         }
         guard !windows.isEmpty else {
-            throw UsageError.invalidResponse("rateLimits에 사용량 창이 없음")
+            throw UsageError.invalidResponse("no limit windows in rateLimits")
         }
 
         var details: [UsageDetail] = []
         if let credits = limits.credits, credits.hasCredits == true {
-            let value = credits.unlimited == true ? "무제한" : (credits.balance.map { String(format: "%.0f", $0.value) } ?? "-")
-            details.append(UsageDetail(label: "크레딧", value: value))
+            let value = credits.unlimited == true ? L("Unlimited") : (credits.balance.map { String(format: "%.0f", $0.value) } ?? "-")
+            details.append(UsageDetail(label: L("Credits"), value: value))
         }
 
         let plan = limits.planType.map { $0.prefix(1).uppercased() + $0.dropFirst() }
         return UsageSnapshot(provider: .codex, plan: plan, windows: windows, details: details, fetchedAt: fetchedAt)
     }
 
-    /// 300 → "5시간", 10080 → "주간", 43200 → "30일".
+    /// 300 → "5-hour", 10080 → "Weekly", 43200 → "30-day" (localized).
     static func windowLabel(minutes: Int) -> String {
-        if minutes == 10080 { return "주간" }
-        if minutes % 1440 == 0 { return "\(minutes / 1440)일" }
-        if minutes % 60 == 0 { return "\(minutes / 60)시간" }
-        return "\(minutes)분"
+        if minutes == 10080 { return L("Weekly") }
+        if minutes % 1440 == 0 { return L("%ld-day", minutes / 1440) }
+        if minutes % 60 == 0 { return L("%ld-hour", minutes / 60) }
+        return L("%ld-minute", minutes)
     }
 }
 

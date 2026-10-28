@@ -80,7 +80,7 @@ public struct CommandProvider: UsageProvider {
         do {
             output = try JSONDecoder().decode(Output.self, from: data)
         } catch {
-            throw UsageError.invalidResponse("플러그인 출력이 형식과 달라요: \(error)")
+            throw UsageError.invalidResponse(L("Plugin output doesn't match the format: %@", String(describing: error)))
         }
         let windows = (output.windows ?? []).map {
             UsageWindow(label: $0.label, percent: $0.percent, resetsAt: $0.resetsAt?.date)
@@ -131,18 +131,18 @@ public enum PluginLoader {
         for entry in config.providers {
             let id = ProviderID(entry.id.trimmingCharacters(in: .whitespaces))
             if id.rawValue.isEmpty || entry.name.isEmpty || entry.command.isEmpty {
-                errors.append("'\(entry.id)': id, name, command는 비울 수 없어요")
+                errors.append(L("'%@': id, name and command can't be empty", entry.id))
                 continue
             }
             if seen.contains(id) {
-                errors.append("'\(id.rawValue)': 이미 쓰고 있는 id예요")
+                errors.append(L("'%@': this id is already in use", id.rawValue))
                 continue
             }
             seen.insert(id)
             let info = ProviderInfo(
                 id: id,
                 displayName: entry.name,
-                requirement: entry.requirement ?? "플러그인",
+                requirement: entry.requirement ?? L("Plugin"),
                 icon: icon(from: entry.icon)
             )
             providers.append(CommandProvider(info: info, command: entry.command, timeout: .seconds(entry.timeout ?? 30)))
@@ -205,7 +205,7 @@ enum ShellCommand {
         process.waitUntilExit()
         watchdog.cancel()
         if await watchdog.value {
-            throw UsageError.timeout("플러그인 명령")
+            throw UsageError.timeout(L("plugin command"))
         }
         return Output(status: process.terminationStatus, stdout: outData, stderr: errData)
     }

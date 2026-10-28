@@ -4,7 +4,7 @@ import Foundation
 /// The OAuth token is the one Claude Code keeps in the login keychain; atus only
 /// reads it and never refreshes it, so Claude Code's own login is never disturbed.
 public struct ClaudeProvider: UsageProvider {
-    public let info = ProviderInfo(id: .claude, displayName: "Claude", requirement: "Claude Code 로그인 (Pro/Max)", icon: .bundled(.claude))
+    public let info = ProviderInfo(id: .claude, displayName: "Claude", requirement: L("Claude Code sign-in (Pro/Max)"), icon: .bundled(.claude))
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     static let keychainService = "Claude Code-credentials"
@@ -20,7 +20,7 @@ public struct ClaudeProvider: UsageProvider {
     public func fetch() async throws -> UsageSnapshot {
         let credentials = try Self.loadCredentials()
         if let expiresAt = credentials.expiresAt, expiresAt <= Date() {
-            throw UsageError.tokenExpired("Claude Code를 한 번 실행하면 갱신돼요")
+            throw UsageError.tokenExpired(L("Run Claude Code once to renew it"))
         }
 
         var request = URLRequest(url: Self.usageURL, timeoutInterval: 20)
@@ -34,7 +34,7 @@ public struct ClaudeProvider: UsageProvider {
         case 200:
             return try Self.snapshot(from: data, plan: credentials.plan, fetchedAt: Date())
         case 401:
-            throw UsageError.tokenExpired("Claude Code를 한 번 실행하면 갱신돼요")
+            throw UsageError.tokenExpired(L("Run Claude Code once to renew it"))
         default:
             throw UsageError.http(status: status, body: String(decoding: data, as: UTF8.self))
         }
@@ -77,7 +77,7 @@ public struct ClaudeProvider: UsageProvider {
                 plan: planName(subscriptionType: oauth.subscriptionType, tier: oauth.rateLimitTier)
             )
         }
-        throw UsageError.credentialsMissing("Claude Code에 로그인하세요 (`claude` → /login)")
+        throw UsageError.credentialsMissing(L("Sign in to Claude Code (`claude` → /login)"))
     }
 
     static func planName(subscriptionType: String?, tier: String?) -> String? {
@@ -132,22 +132,22 @@ public struct ClaudeProvider: UsageProvider {
         }
 
         let namedWindows: [(String, Response.Window?)] = [
-            ("5시간 세션", response.fiveHour),
-            ("주간", response.sevenDay),
-            ("주간 · Opus", response.sevenDayOpus),
-            ("주간 · Sonnet", response.sevenDaySonnet),
+            (L("5-hour session"), response.fiveHour),
+            (L("Weekly"), response.sevenDay),
+            (L("Weekly · Opus"), response.sevenDayOpus),
+            (L("Weekly · Sonnet"), response.sevenDaySonnet),
         ]
         let windows = namedWindows.compactMap { label, window -> UsageWindow? in
             guard let window, let percent = window.utilization else { return nil }
             return UsageWindow(label: label, percent: percent, resetsAt: window.resetsAt.flatMap(ISODate.parse))
         }
         guard !windows.isEmpty else {
-            throw UsageError.invalidResponse("five_hour/seven_day 없음")
+            throw UsageError.invalidResponse("missing five_hour/seven_day")
         }
 
         var details: [UsageDetail] = []
         for row in response.sevenDayBreakdown?.rows ?? [] {
-            details.append(UsageDetail(label: "이번 주 · \(row.displayName)", value: "\(Int(row.percent.rounded()))%"))
+            details.append(UsageDetail(label: L("This week · %@", row.displayName), value: "\(Int(row.percent.rounded()))%"))
         }
         if let extra = response.extraUsage {
             let value: String
@@ -157,9 +157,9 @@ public struct ClaudeProvider: UsageProvider {
                 value = formatMoney(minor: extra.usedCredits ?? 0, decimals: decimals, currency: currency)
                     + " / " + formatMoney(minor: extra.monthlyLimit ?? 0, decimals: decimals, currency: currency)
             } else {
-                value = "꺼짐" + (extra.disabledReason.map { " (\($0))" } ?? "")
+                value = extra.disabledReason.map { L("Off (%@)", $0) } ?? L("Off")
             }
-            details.append(UsageDetail(label: "추가 사용량", value: value))
+            details.append(UsageDetail(label: L("Extra usage"), value: value))
         }
 
         return UsageSnapshot(provider: .claude, plan: plan, windows: windows, details: details, fetchedAt: fetchedAt)

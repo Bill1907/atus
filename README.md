@@ -8,7 +8,7 @@ Each tracked service gets a logo and a percentage in the menu bar. Click it for 
   <img src="docs/screenshot.png" alt="atus menu bar label with Claude and Grok logos, and its panel showing Claude's 5-hour and weekly limits and Grok's weekly pool" width="340">
 </p>
 
-> The UI is currently in Korean.
+> The app follows your macOS language: English, or Korean (한국어) on a Korean system. To pick a language just for atus, use System Settings → General → Language & Region → Applications. This README uses the English labels.
 
 ## What it shows
 
@@ -22,7 +22,7 @@ Each tracked service gets a logo and a percentage in the menu bar. Click it for 
 
 ## Choosing services
 
-On first launch atus turns on every service whose app or CLI it finds set up on your Mac. Upgrades from 0.1.x keep Claude and Grok. To change the selection, open the panel and expand **서비스 선택** (choose services), then tick the ones you want. At least one stays on. Services atus doesn't support yet can be added as [plugins](#plugins-any-other-service).
+On first launch atus turns on every service whose app or CLI it finds set up on your Mac. Upgrades from 0.1.x keep Claude and Grok. To change the selection, open the panel and expand **Choose services**, then tick the ones you want. At least one stays on. Services atus doesn't support yet can be added as [plugins](#plugins-any-other-service).
 
 The menu bar shows the tracked services two rows per column. More services make the label wider, which matters on a MacBook with a notch. On first launch atus places itself at the right end of the menu bar items. After that it stays wherever you ⌘-drag it, or wherever Ice or Bartender puts it.
 
@@ -30,7 +30,7 @@ Each number is the window closest to its limit, since that is the one that stops
 
 ## Plugins: any other service
 
-Any service can be added with a small script: atus runs it and reads usage from the JSON it prints. A plugin then appears in the menu bar, the panel, and **서비스 선택** like a built-in service. Since the script, not atus, decides how to authenticate, you stay in control of credentials and of each vendor's terms.
+Any service can be added with a small script: atus runs it and reads usage from the JSON it prints. A plugin then appears in the menu bar, the panel, and **Choose services** like a built-in service. Since the script, not atus, decides how to authenticate, you stay in control of credentials and of each vendor's terms.
 
 ### Try it in 5 minutes
 
@@ -52,7 +52,7 @@ chmod +x ~/atus-plugins/demo.sh
 
 You should see the JSON pretty-printed. If `jq` reports a parse error, the output isn't valid JSON. `jq` ships with macOS 15 and later; on macOS 14 run `brew install jq` or use `python3 -m json.tool` instead.
 
-**3. Register it.** Open the atus panel, expand **서비스 선택**, and click **플러그인 설정 열기 (providers.json)**. That creates `~/.config/atus/providers.json` and opens it in your text editor. Replace its contents with:
+**3. Register it.** Open the atus panel, expand **Choose services**, and click **Open plugin settings (providers.json)**. That creates `~/.config/atus/providers.json` and opens it in your text editor. Replace its contents with:
 
 ```json
 {
@@ -64,7 +64,7 @@ You should see the JSON pretty-printed. If `jq` reports a parse error, the outpu
 
 Save the file. To add more plugins later, add more `{ ... }` entries to the list, separated by commas.
 
-**4. Load it.** Open the panel and press ⌘R, or wait for the next automatic refresh (at most 5 minutes). **Demo 42%** appears in the menu bar and the panel. New plugins start enabled; turn them off under **서비스 선택** like any other service.
+**4. Load it.** Open the panel and press ⌘R, or wait for the next automatic refresh (at most 5 minutes). **Demo 42%** appears in the menu bar and the panel. New plugins start enabled; turn them off under **Choose services** like any other service.
 
 **5. Make it real.** Edit the script to fetch your service's numbers, or start from the [OpenRouter example](#example-openrouter-credits) below. To remove the demo, delete its entry from `providers.json`.
 
@@ -105,10 +105,10 @@ exit 1
 | `name` | yes | Shown in the menu bar tooltip and the panel. |
 | `command` | yes | Run with `/bin/sh -c` from your home directory, so `~` and arguments work (`"~/atus-plugins/x.sh --account work"`). `PATH` includes `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Your shell profile (`.zshrc`) is **not** loaded. |
 | `icon` | no | An [SF Symbol](https://developer.apple.com/sf-symbols/) name such as `sparkles`, `bolt.fill` or `cloud`, or the path to an SVG or PNG file, drawn monochrome. The default is a puzzle piece. |
-| `requirement` | no | Caption under the name in **서비스 선택**, e.g. `OpenRouter management key`. |
+| `requirement` | no | Caption under the name in **Choose services**, e.g. `OpenRouter management key`. |
 | `timeout` | no | Seconds before atus stops the script. The default is 30. |
 
-atus re-reads the file on every refresh. If an entry is wrong, the reason appears under **서비스 선택** and the other entries still load.
+atus re-reads the file on every refresh. If an entry is wrong, the reason appears under **Choose services** and the other entries still load.
 
 ### Keep secrets out of the files
 
@@ -148,12 +148,12 @@ key=$(security find-generic-password -s atus-myservice -w) || { echo "no key in 
 
 | What you see | Cause and fix |
 |---|---|
-| `플러그인 오류: … Permission denied` | The script isn't executable. Run `chmod +x` on it. |
-| `플러그인 오류: … command not found` | The script or a tool it uses isn't on atus's `PATH`, which doesn't include your `.zshrc` changes. Use full paths (`/opt/homebrew/bin/jq`) or a path in the `command` field. |
-| `플러그인 오류: <your message>` | The script exited non-zero; the message is the last line it wrote to stderr. |
-| `응답 해석 실패: 플러그인 출력이 형식과 달라요` | The output isn't valid JSON or is missing `label`/`percent`. Run the script in Terminal and pipe it through `jq .`. Print nothing else to stdout; send debug output to stderr. |
-| `시간 초과: 플러그인 명령` | The script ran longer than `timeout`. Add timeouts to network calls (`curl --max-time 20`) or raise `timeout`. |
-| The plugin doesn't appear at all | Check the messages under **서비스 선택**. A typo in `providers.json` or an `id` that is already used is reported there. Then press ⌘R in the panel. |
+| `Plugin error: … Permission denied` | The script isn't executable. Run `chmod +x` on it. |
+| `Plugin error: … command not found` | The script or a tool it uses isn't on atus's `PATH`, which doesn't include your `.zshrc` changes. Use full paths (`/opt/homebrew/bin/jq`) or a path in the `command` field. |
+| `Plugin error: <your message>` | The script exited non-zero; the message is the last line it wrote to stderr. |
+| `Couldn't read the response: Plugin output doesn't match the format` | The output isn't valid JSON or is missing `label`/`percent`. Run the script in Terminal and pipe it through `jq .`. Print nothing else to stdout; send debug output to stderr. |
+| `Timed out: plugin command` | The script ran longer than `timeout`. Add timeouts to network calls (`curl --max-time 20`) or raise `timeout`. |
+| The plugin doesn't appear at all | Check the messages under **Choose services**. A typo in `providers.json` or an `id` that is already used is reported there. Then press ⌘R in the panel. |
 
 ### Why Google Gemini is not built in
 
@@ -174,7 +174,7 @@ Google's [Gemini CLI FAQ](https://geminicli.com/docs/resources/faq/) forbids thi
 1. Download **[Atus.dmg](https://github.com/Bill1907/atus/releases/latest/download/Atus.dmg)** from the latest release.
 2. Open it and drag **Atus** into **Applications**.
 3. Open Atus from Applications. It lives in the **menu bar**; there is no Dock icon.
-4. Optional: in the panel, turn on **로그인 시 자동 실행** (launch at login).
+4. Optional: in the panel, turn on **Launch at login**.
 
 Releases are signed with a Developer ID and notarized by Apple, so the app opens without Gatekeeper warnings.
 
@@ -184,7 +184,7 @@ atus does not update itself. Download the latest `Atus.dmg` and replace the app 
 
 ### Uninstall
 
-1. In the panel, turn off **로그인 시 자동 실행** if you turned it on, then click **종료** (quit).
+1. In the panel, turn off **Launch at login** if you turned it on, then click **Quit**.
 2. Delete `/Applications/Atus.app`.
 3. Optional: remove its preferences with `defaults delete com.boseongkim.atus`, and `~/.config/atus` if you added plugins.
 
@@ -222,16 +222,16 @@ The panel shows the error under the provider's name; the menu bar adds `!` to th
 
 | Panel message | Fix |
 |---|---|
-| Claude `토큰 만료: Claude Code를 한 번 실행하면 갱신돼요` (token expired) | Run `claude` once; Claude Code refreshes its token. |
-| Claude `로그인 정보 없음: Claude Code에 로그인하세요` (no login) | Install Claude Code and log in with `/login`. |
-| Grok `로그인 정보 없음: grok login을 실행하세요` (no login) | Run `grok login`. |
-| Grok `로그인 정보 없음: grok CLI를 찾을 수 없어요` (CLI not found) | The token has expired and atus can't find the Grok CLI. Install it; atus looks in `~/.grok/bin`, `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`. |
-| Codex `로그인 정보 없음: codex CLI를 찾을 수 없어요` (CLI not found) | Install the Codex CLI. atus looks in `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`. |
-| Codex `account/rateLimits/read: …` | Run `codex login`. |
-| Cursor `토큰 만료: Cursor 앱을 한 번 열면 갱신돼요` (token expired) | Open Cursor once so it renews its session. |
-| Cursor `로그인 정보 없음: Cursor 앱에 로그인하세요` (no login) | Sign in to the Cursor app. |
-| Copilot `로그인 정보 없음: gh auth login을 실행하세요` / `토큰 만료: …` | Run `gh auth login` with an account that has Copilot. |
-| `HTTP 4xx/5xx` or `응답 해석 실패` (could not parse response) | The vendor endpoint changed or is down. Please [open an issue](https://github.com/Bill1907/atus/issues). |
+| Claude `Token expired: Run Claude Code once to renew it` | Run `claude` once; Claude Code refreshes its token. |
+| Claude `No login: Sign in to Claude Code` | Install Claude Code and log in with `/login`. |
+| Grok `No login: Run grok login` | Run `grok login`. |
+| Grok `No login: grok CLI not found` | The token has expired and atus can't find the Grok CLI. Install it; atus looks in `~/.grok/bin`, `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`. |
+| Codex `No login: codex CLI not found` | Install the Codex CLI. atus looks in `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`. |
+| Codex `Couldn't read the response: account/rateLimits/read: …` | Run `codex login`. |
+| Cursor `Token expired: Open the Cursor app once to renew it` | Open Cursor once so it renews its session. |
+| Cursor `No login: Sign in to the Cursor app` | Sign in to the Cursor app. |
+| Copilot `No login: Run gh auth login` / `Token expired: …` | Run `gh auth login` with an account that has Copilot. |
+| `HTTP 4xx/5xx` or `Couldn't read the response` | The vendor endpoint changed or is down. Please [open an issue](https://github.com/Bill1907/atus/issues). |
 
 atus is in the menu bar but you can't see it? On a MacBook with a notch, macOS hides the leftmost items when the menu bar is full. ⌘-drag atus further right, or move it to the visible section in Ice or Bartender.
 
@@ -249,6 +249,11 @@ Layout:
 - `Sources/AtusCore`: providers and response parsing; no UI code
 - `Sources/Atus`: AppKit status item with a SwiftUI panel (`main.swift`, `StatusItemController.swift`, `UsagePanel.swift`)
 - `scripts/`: bundling, icon, DMG, and release scripts
+- `Resources/ko.lproj/Localizable.strings`: Korean UI text
+
+### Translations
+
+User-facing text goes through `L("English text")`, or `L("Resets in %@", value)` for formats; see `Sources/AtusCore/Localization.swift`. The English string is the key, so English needs no table. Add each new string's Korean translation to `Resources/ko.lproj/Localizable.strings`. For another language, add `Resources/<code>.lproj/Localizable.strings` and list the code under `CFBundleLocalizations` in `Resources/Info.plist`. Tests run without the app bundle, so they always see English.
 
 ### Adding a service
 
@@ -258,7 +263,7 @@ Built-in services live in `Sources/AtusCore`. For a personal or experimental one
 2. Implement `UsageProvider` in a new `Sources/AtusCore/<Name>Provider.swift`. `info` holds the display name, requirement caption, and `.bundled` icon. `isDetected` is a cheap local file check, and `fetch()` returns a `UsageSnapshot`. Read the vendor's own login and never write it back. Keep response mapping in a `static func snapshot(from:fetchedAt:)` so it can be unit-tested.
 3. Register it in `Providers.builtIn`.
 4. Add a monochrome SVG logo to `Sources/Atus/ProviderLogo.swift` and credit its source in `THIRD_PARTY_NOTICES.md`.
-5. Add a mapping test with a sanitized real response to `Tests/AtusCoreTests`.
+5. Add a mapping test with a sanitized real response to `Tests/AtusCoreTests`, and Korean translations for any new UI text.
 
 ## Releasing
 

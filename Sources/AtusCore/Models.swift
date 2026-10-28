@@ -119,12 +119,12 @@ public enum UsageError: LocalizedError, Sendable, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .credentialsMissing(let hint): "로그인 정보 없음: \(hint)"
-        case .tokenExpired(let hint): "토큰 만료: \(hint)"
+        case .credentialsMissing(let hint): L("No login: %@", hint)
+        case .tokenExpired(let hint): L("Token expired: %@", hint)
         case .http(let status, let body): "HTTP \(status): \(body.prefix(160))"
-        case .invalidResponse(let detail): "응답 해석 실패: \(detail)"
-        case .timeout(let what): "시간 초과: \(what)"
-        case .pluginFailed(let message): "플러그인 오류: \(message.prefix(200))"
+        case .invalidResponse(let detail): L("Couldn't read the response: %@", detail)
+        case .timeout(let what): L("Timed out: %@", what)
+        case .pluginFailed(let message): L("Plugin error: %@", String(message.prefix(200)))
         }
     }
 }

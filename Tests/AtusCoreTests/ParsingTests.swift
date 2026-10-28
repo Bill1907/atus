@@ -31,11 +31,11 @@ import Testing
         """
         let snapshot = try ClaudeProvider.snapshot(from: Data(json.utf8), plan: "Max 5x", fetchedAt: .now)
 
-        #expect(snapshot.windows.map(\.label) == ["5시간 세션", "주간"])
+        #expect(snapshot.windows.map(\.label) == ["5-hour session", "Weekly"])
         #expect(snapshot.headlinePercent == 45)
         #expect(snapshot.windows.allSatisfy { $0.resetsAt != nil })
-        #expect(snapshot.details.contains(UsageDetail(label: "추가 사용량", value: "$12.34 / $100.00")))
-        #expect(snapshot.details.contains(UsageDetail(label: "이번 주 · Claude Code", value: "100%")))
+        #expect(snapshot.details.contains(UsageDetail(label: "Extra usage", value: "$12.34 / $100.00")))
+        #expect(snapshot.details.contains(UsageDetail(label: "This week · Claude Code", value: "100%")))
     }
 
     @Test func rejectsResponseWithoutAnyWindow() {
@@ -65,8 +65,8 @@ import Testing
 
         #expect(snapshot.headlinePercent == 21)
         #expect(snapshot.windows.first?.resetsAt == ISODate.parse("2026-11-03T03:15:18.391+00:00"))
-        #expect(snapshot.details.contains(UsageDetail(label: "이번 주 · Api", value: "16%")))
-        #expect(snapshot.details.contains(UsageDetail(label: "추가 크레딧 잔액", value: "$4.93")))
+        #expect(snapshot.details.contains(UsageDetail(label: "This week · Api", value: "16%")))
+        #expect(snapshot.details.contains(UsageDetail(label: "Extra credit balance", value: "$4.93")))
         #expect(snapshot.plan == nil)
     }
 
@@ -80,7 +80,7 @@ import Testing
 
         #expect(snapshot.headlinePercent == 0)
         #expect(snapshot.plan == "SuperGrok")
-        #expect(snapshot.details.contains(UsageDetail(label: "추가 크레딧 잔액", value: "$14.46")))
+        #expect(snapshot.details.contains(UsageDetail(label: "Extra credit balance", value: "$14.46")))
     }
 
     @Test func extractsBillingResultFromAgentRPCStream() throws {
@@ -107,11 +107,11 @@ import Testing
         """
         let snapshot = try CodexProvider.snapshot(from: Data(json.utf8), fetchedAt: .now)
 
-        #expect(snapshot.windows.map(\.label) == ["5시간", "주간"])
+        #expect(snapshot.windows.map(\.label) == ["5-hour", "Weekly"])
         #expect(snapshot.headlinePercent == 40)
         #expect(snapshot.windows.first?.resetsAt == Date(timeIntervalSince1970: 1795766500))
         #expect(snapshot.plan == "Plus")
-        #expect(snapshot.details == [UsageDetail(label: "크레딧", value: "120")])
+        #expect(snapshot.details == [UsageDetail(label: "Credits", value: "120")])
     }
 
     @Test func mapsFreePlanThirtyDayWindowWithoutSecondary() throws {
@@ -121,7 +121,7 @@ import Testing
         """
         let snapshot = try CodexProvider.snapshot(from: Data(json.utf8), fetchedAt: .now)
 
-        #expect(snapshot.windows.map(\.label) == ["30일"])
+        #expect(snapshot.windows.map(\.label) == ["30-day"])
         #expect(snapshot.details.isEmpty)
     }
 }
@@ -139,8 +139,8 @@ import Testing
         #expect(snapshot.headlinePercent == 26.7)
         #expect(snapshot.windows.first?.resetsAt == ISODate.parse("2026-11-01T00:00:00Z"))
         #expect(snapshot.plan == "Premium")
-        #expect(snapshot.details.contains(UsageDetail(label: "포함 사용량", value: "$12.34 / $46.15")))
-        #expect(snapshot.details.contains(UsageDetail(label: "추가 사용량", value: "꺼짐")))
+        #expect(snapshot.details.contains(UsageDetail(label: "Included usage", value: "$12.34 / $46.15")))
+        #expect(snapshot.details.contains(UsageDetail(label: "Extra usage", value: "Off")))
     }
 
     @Test func readsSubjectAndExpiryFromJWT() throws {
@@ -164,10 +164,10 @@ import Testing
         """
         let snapshot = try CopilotProvider.snapshot(from: Data(json.utf8), fetchedAt: .now)
 
-        #expect(snapshot.windows.map(\.label) == ["채팅"])
+        #expect(snapshot.windows.map(\.label) == ["Chat"])
         #expect(snapshot.headlinePercent == 25)
         #expect(snapshot.windows.first?.resetsAt == ISODate.parse("2026-11-01T00:00:00Z"))
-        #expect(snapshot.details == [UsageDetail(label: "채팅 남음", value: "150 / 200")])
+        #expect(snapshot.details == [UsageDetail(label: "Chat left", value: "150 / 200")])
         #expect(snapshot.plan == "Free")
     }
 }

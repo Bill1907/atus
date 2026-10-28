@@ -5,7 +5,7 @@ import SQLite3
 /// session Cursor.app keeps in its local state database. The database is opened
 /// read-only and the token is never refreshed or written back.
 public struct CursorProvider: UsageProvider {
-    public let info = ProviderInfo(id: .cursor, displayName: "Cursor", requirement: "Cursor 앱 로그인", icon: .bundled(.cursor))
+    public let info = ProviderInfo(id: .cursor, displayName: "Cursor", requirement: L("Cursor app sign-in"), icon: .bundled(.cursor))
 
     static let summaryURL = URL(string: "https://cursor.com/api/usage-summary")!
     static var databasePath: String {
@@ -21,10 +21,10 @@ public struct CursorProvider: UsageProvider {
     public func fetch() async throws -> UsageSnapshot {
         let token = try Self.readAccessToken()
         guard let claims = Self.jwtClaims(token), let subject = claims.sub else {
-            throw UsageError.credentialsMissing("Cursor 앱에 로그인하세요")
+            throw UsageError.credentialsMissing(L("Sign in to the Cursor app"))
         }
         if let exp = claims.exp, Date(timeIntervalSince1970: exp) <= Date().addingTimeInterval(60) {
-            throw UsageError.tokenExpired("Cursor 앱을 한 번 열면 갱신돼요")
+            throw UsageError.tokenExpired(L("Open the Cursor app once to renew it"))
         }
         // Cursor's web session cookie is "<user id>::<access token>".
         let userID = subject.split(separator: "|").last.map(String.init) ?? subject
@@ -36,7 +36,7 @@ public struct CursorProvider: UsageProvider {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         switch status {
         case 200: return try Self.snapshot(from: data, fetchedAt: Date())
-        case 401, 403: throw UsageError.tokenExpired("Cursor 앱을 한 번 열면 갱신돼요")
+        case 401, 403: throw UsageError.tokenExpired(L("Open the Cursor app once to renew it"))
         default: throw UsageError.http(status: status, body: String(decoding: data, as: UTF8.self))
         }
     }
@@ -45,31 +45,31 @@ public struct CursorProvider: UsageProvider {
 
     static func readAccessToken() throws -> String {
         guard FileManager.default.fileExists(atPath: databasePath) else {
-            throw UsageError.credentialsMissing("Cursor 앱을 설치하고 로그인하세요")
+            throw UsageError.credentialsMissing(L("Install the Cursor app and sign in"))
         }
         let uri = URL(fileURLWithPath: databasePath).absoluteString + "?mode=ro"
         var db: OpaquePointer?
         guard sqlite3_open_v2(uri, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil) == SQLITE_OK else {
             sqlite3_close(db)
-            throw UsageError.credentialsMissing("Cursor 상태 DB를 열 수 없어요")
+            throw UsageError.credentialsMissing(L("Can't open Cursor's state database"))
         }
         defer { sqlite3_close(db) }
 
         var statement: OpaquePointer?
         let sql = "SELECT value FROM ItemTable WHERE key = 'cursorAuth/accessToken'"
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw UsageError.credentialsMissing("Cursor 상태 DB를 읽을 수 없어요")
+            throw UsageError.credentialsMissing(L("Can't read Cursor's state database"))
         }
         defer { sqlite3_finalize(statement) }
 
         guard sqlite3_step(statement) == SQLITE_ROW, let text = sqlite3_column_text(statement, 0) else {
-            throw UsageError.credentialsMissing("Cursor 앱에 로그인하세요")
+            throw UsageError.credentialsMissing(L("Sign in to the Cursor app"))
         }
         let token = String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines)
         if token.hasPrefix("cursor-safe-storage:") {
-            throw UsageError.credentialsMissing("이 Cursor 버전은 토큰을 암호화해 저장해서 아직 읽을 수 없어요")
+            throw UsageError.credentialsMissing(L("This Cursor version stores its token encrypted, which atus can't read yet"))
         }
-        guard !token.isEmpty else { throw UsageError.credentialsMissing("Cursor 앱에 로그인하세요") }
+        guard !token.isEmpty else { throw UsageError.credentialsMissing(L("Sign in to the Cursor app")) }
         return token
     }
 
@@ -122,11 +122,11 @@ public struct CursorProvider: UsageProvider {
             throw UsageError.invalidResponse(String(describing: error))
         }
         guard let plan = response.individualUsage?.plan, let total = plan.totalPercentUsed else {
-            throw UsageError.invalidResponse("individualUsage.plan 없음")
+            throw UsageError.invalidResponse("missing individualUsage.plan")
         }
 
         let window = UsageWindow(
-            label: "이번 결제 주기",
+            label: L("This billing cycle"),
             percent: total,
             resetsAt: response.billingCycleEnd.flatMap(ISODate.parse)
         )
@@ -139,16 +139,16 @@ public struct CursorProvider: UsageProvider {
             details.append(UsageDetail(label: "API", value: "\(Int(api.rounded()))%"))
         }
         if let used = plan.used, let limit = plan.limit {
-            details.append(UsageDetail(label: "포함 사용량", value: formatMoney(minor: used) + " / " + formatMoney(minor: limit)))
+            details.append(UsageDetail(label: L("Included usage"), value: formatMoney(minor: used) + " / " + formatMoney(minor: limit)))
         }
         if let onDemand = response.individualUsage?.onDemand {
             let value: String
             if onDemand.enabled == true {
                 value = formatMoney(minor: onDemand.used ?? 0) + (onDemand.limit.map { " / " + formatMoney(minor: $0) } ?? "")
             } else {
-                value = "꺼짐"
+                value = L("Off")
             }
-            details.append(UsageDetail(label: "추가 사용량", value: value))
+            details.append(UsageDetail(label: L("Extra usage"), value: value))
         }
 
         let membership = response.membershipType.map { $0.prefix(1).uppercased() + $0.dropFirst() }

@@ -4,7 +4,7 @@ import Foundation
 /// endpoint Copilot editor extensions use. The GitHub token comes from `gh auth token`
 /// first, then from the Copilot editor plugins' `~/.config/github-copilot` files.
 public struct CopilotProvider: UsageProvider {
-    public let info = ProviderInfo(id: .copilot, displayName: "Copilot", requirement: "GitHub CLI 로그인 (gh)", icon: .bundled(.copilot))
+    public let info = ProviderInfo(id: .copilot, displayName: "Copilot", requirement: L("GitHub CLI sign-in (gh)"), icon: .bundled(.copilot))
 
     static let userURL = URL(string: "https://api.github.com/copilot_internal/user")!
     static var copilotConfigDirectory: String { "\(CLILocator.home)/.config/github-copilot" }
@@ -19,7 +19,7 @@ public struct CopilotProvider: UsageProvider {
     public func fetch() async throws -> UsageSnapshot {
         let tokens = Self.candidateTokens()
         guard !tokens.isEmpty else {
-            throw UsageError.credentialsMissing("`gh auth login`을 실행하세요")
+            throw UsageError.credentialsMissing(L("Run `gh auth login`"))
         }
         // A stale editor-plugin token is common, so try every source before giving up.
         for token in tokens {
@@ -39,7 +39,7 @@ public struct CopilotProvider: UsageProvider {
             default: throw UsageError.http(status: status, body: String(decoding: data, as: UTF8.self))
             }
         }
-        throw UsageError.tokenExpired("`gh auth login`으로 다시 로그인하세요")
+        throw UsageError.tokenExpired(L("Sign in again with `gh auth login`"))
     }
 
     static func candidateTokens() -> [String] {
@@ -97,11 +97,11 @@ public struct CopilotProvider: UsageProvider {
         }
     }
 
-    /// Quota keys in display order with their labels.
+    /// Quota keys in display order with their (English, localized at use) labels.
     static let quotas: [(key: String, label: String)] = [
-        ("premium_interactions", "프리미엄 요청"),
-        ("chat", "채팅"),
-        ("completions", "코드 완성"),
+        ("premium_interactions", "Premium requests"),
+        ("chat", "Chat"),
+        ("completions", "Completions"),
     ]
 
     public static func snapshot(from data: Data, fetchedAt: Date) throws -> UsageSnapshot {
@@ -112,21 +112,22 @@ public struct CopilotProvider: UsageProvider {
             throw UsageError.invalidResponse(String(describing: error))
         }
         guard let snapshots = response.quotaSnapshots else {
-            throw UsageError.invalidResponse("quota_snapshots 없음")
+            throw UsageError.invalidResponse("missing quota_snapshots")
         }
 
         let resetsAt = response.quotaResetDateUtc.flatMap(ISODate.parse)
         var windows: [UsageWindow] = []
         var details: [UsageDetail] = []
-        for (key, label) in quotas {
+        for (key, englishLabel) in quotas {
             // Unlimited quotas and ones the plan does not include (entitlement 0) have no meter.
             guard let quota = snapshots[key], quota.unlimited != true,
                   let entitlement = quota.entitlement, entitlement > 0,
                   let remainingPercent = quota.percentRemaining
             else { continue }
+            let label = L(englishLabel)
             windows.append(UsageWindow(label: label, percent: max(0, 100 - remainingPercent), resetsAt: resetsAt))
             if let remaining = quota.remaining {
-                details.append(UsageDetail(label: "\(label) 남음", value: "\(Int(remaining)) / \(Int(entitlement))"))
+                details.append(UsageDetail(label: L("%@ left", label), value: "\(Int(remaining)) / \(Int(entitlement))"))
             }
         }
 

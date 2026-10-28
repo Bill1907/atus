@@ -30,6 +30,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Atus" "$APP/Contents/MacOS/Atus"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp -R Resources/*.lproj "$APP/Contents/Resources/"
 
 PLIST="$APP/Contents/Info.plist"
 if [[ -n "${ATUS_VERSION:-}" ]]; then

@@ -7,7 +7,7 @@ import Foundation
 /// expired (or rejected) atus asks `grok agent stdio` for `_x.ai/billing`; the CLI
 /// handles its own token refresh and atus never touches the rotating refresh token.
 public struct GrokProvider: UsageProvider {
-    public let info = ProviderInfo(id: .grok, displayName: "Grok", requirement: "Grok CLI 로그인 (SuperGrok)", icon: .bundled(.grok))
+    public let info = ProviderInfo(id: .grok, displayName: "Grok", requirement: L("Grok CLI sign-in (SuperGrok)"), icon: .bundled(.grok))
 
     static let billingURL = URL(string: "https://cli-chat-proxy.grok.com/v1/billing?format=credits")!
 
@@ -21,7 +21,7 @@ public struct GrokProvider: UsageProvider {
         // Without ~/.grok/auth.json the CLI fallback cannot authenticate either, so say
         // "log in" instead of surfacing the agent's opaque billing error.
         guard let token = try? Self.loadToken() else {
-            throw UsageError.credentialsMissing("`grok login`을 실행하세요")
+            throw UsageError.credentialsMissing(L("Run `grok login`"))
         }
         if token.expiresAt.map({ $0 > Date().addingTimeInterval(60) }) ?? true {
             do {
@@ -45,7 +45,7 @@ public struct GrokProvider: UsageProvider {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         switch status {
         case 200: return try Self.snapshot(from: data, fetchedAt: Date())
-        case 401, 403: throw UsageError.tokenExpired("grok CLI 토큰")
+        case 401, 403: throw UsageError.tokenExpired(L("grok CLI token"))
         default: throw UsageError.http(status: status, body: String(decoding: data, as: UTF8.self))
         }
     }
@@ -70,7 +70,7 @@ public struct GrokProvider: UsageProvider {
         let entries = try JSONDecoder().decode([String: AuthEntry].self, from: Data(contentsOf: url))
         let preferred = entries.first { $0.key.hasPrefix("https://auth.x.ai") }?.value ?? entries.values.first
         guard let entry = preferred, let key = entry.key else {
-            throw UsageError.credentialsMissing("`grok login`을 실행하세요")
+            throw UsageError.credentialsMissing(L("Run `grok login`"))
         }
         return Token(value: key, expiresAt: entry.expiresAt.flatMap(ISODate.parse))
     }
@@ -79,7 +79,7 @@ public struct GrokProvider: UsageProvider {
 
     func fetchViaAgent() async throws -> UsageSnapshot {
         guard let binary = Self.grokBinary() else {
-            throw UsageError.credentialsMissing("grok CLI를 찾을 수 없어요 (~/.grok/bin/grok)")
+            throw UsageError.credentialsMissing(L("grok CLI not found (~/.grok/bin/grok)"))
         }
         let result = try await StdioJSONRPC.call(
             executable: binary,
@@ -157,17 +157,17 @@ public struct GrokProvider: UsageProvider {
 
         // Protobuf JSON omits zero-valued fields, so a fresh week has no creditUsagePercent.
         let weekly = UsageWindow(
-            label: "주간",
+            label: L("Weekly"),
             percent: config.creditUsagePercent ?? 0,
             resetsAt: (config.currentPeriod?.end ?? config.billingPeriodEnd).flatMap(ISODate.parse)
         )
 
         var details: [UsageDetail] = []
         for usage in config.productUsage ?? [] {
-            details.append(UsageDetail(label: "이번 주 · \(usage.product)", value: "\(Int((usage.usagePercent ?? 0).rounded()))%"))
+            details.append(UsageDetail(label: L("This week · %@", usage.product), value: "\(Int((usage.usagePercent ?? 0).rounded()))%"))
         }
         if let balance = config.prepaidBalance {
-            details.append(UsageDetail(label: "추가 크레딧 잔액", value: formatMoney(minor: balance.val)))
+            details.append(UsageDetail(label: L("Extra credit balance"), value: formatMoney(minor: balance.val)))
         }
 
         return UsageSnapshot(provider: .grok, plan: response.subscriptionTier, windows: [weekly], details: details, fetchedAt: fetchedAt)

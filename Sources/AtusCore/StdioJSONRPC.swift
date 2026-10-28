@@ -41,7 +41,7 @@ enum StdioJSONRPC {
                 for try await line in reader.bytes.lines {
                     if let payload = try result(fromLine: line, id: resultID, method: method) { return payload }
                 }
-                throw UsageError.invalidResponse("\(name)가 응답 없이 종료됨")
+                throw UsageError.invalidResponse(L("%@ exited without a response", name))
             }
             group.addTask {
                 try await Task.sleep(for: timeout)

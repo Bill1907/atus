@@ -36,7 +36,7 @@ import Testing
 
     @Test func terminatesCommandsThatRunTooLong() async {
         let start = Date()
-        await #expect(throws: UsageError.timeout("플러그인 명령")) {
+        await #expect(throws: UsageError.timeout("plugin command")) {
             try await provider("sleep 5", timeout: .milliseconds(300)).fetch()
         }
         #expect(Date().timeIntervalSince(start) < 3)

@@ -40,18 +40,18 @@ struct UsagePanel: View {
     private var footer: some View {
         HStack {
             if let lastRefresh = store.lastRefresh {
-                Text("갱신 \(lastRefresh.formatted(date: .omitted, time: .shortened))")
+                Text(L("Updated %@", lastRefresh.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(appLocale))))
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Button {
                 Task { await store.refresh() }
             } label: {
-                if store.isRefreshing { ProgressView().controlSize(.small) } else { Text("새로고침") }
+                if store.isRefreshing { ProgressView().controlSize(.small) } else { Text(L("Refresh")) }
             }
             .keyboardShortcut("r")
             .disabled(store.isRefreshing)
-            Button("종료") { NSApplication.shared.terminate(nil) }
+            Button(L("Quit")) { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         }
         .font(.caption)
@@ -65,7 +65,7 @@ private struct ProviderPicker: View {
     @State private var isExpanded = false
 
     var body: some View {
-        DisclosureGroup("서비스 선택 (\(store.providerIDs.count)/\(store.allProviders.count))", isExpanded: $isExpanded) {
+        DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(store.allProviders) { info in
                     let isOn = store.enabled.contains(info.id)
@@ -87,11 +87,13 @@ private struct ProviderPicker: View {
                         .foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Button("플러그인 설정 열기 (providers.json)") { openPluginConfig() }
+                Button(L("Open plugin settings (providers.json)")) { openPluginConfig() }
                     .buttonStyle(.link)
                     .font(.caption2)
             }
             .padding(.top, 6)
+        } label: {
+            Text(L("Choose services (%ld/%ld)", store.providerIDs.count, store.allProviders.count))
         }
         .font(.caption)
     }
@@ -128,7 +130,7 @@ private struct LaunchAtLoginToggle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // A closure, not `set: setEnabled`: Swift 6.3 crashes in IRGen on the method-reference thunk.
-            Toggle("로그인 시 자동 실행", isOn: Binding(get: { isEnabled }, set: { setEnabled($0) }))
+            Toggle(L("Launch at login"), isOn: Binding(get: { isEnabled }, set: { setEnabled($0) }))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
             if let error {
@@ -204,7 +206,7 @@ private struct WindowRow: View {
                 .tint(tint)
             if let resetsAt = window.resetsAt {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
-                    Text("\(remaining(until: resetsAt, from: context.date)) 후 초기화 · \(resetsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))")
+                    Text(L("Resets in %@ · %@", remaining(until: resetsAt, from: context.date), resetsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute().locale(appLocale))))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -225,8 +227,8 @@ private struct WindowRow: View {
         let days = minutes / 1440
         let hours = minutes % 1440 / 60
         let mins = minutes % 60
-        if days > 0 { return "\(days)일 \(hours)시간" }
-        if hours > 0 { return "\(hours)시간 \(mins)분" }
-        return "\(mins)분"
+        if days > 0 { return L("%ldd %ldh", days, hours) }
+        if hours > 0 { return L("%ldh %ldm", hours, mins) }
+        return L("%ldm", mins)
     }
 }
