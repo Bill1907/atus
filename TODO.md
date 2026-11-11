@@ -78,6 +78,7 @@ Implementation notes:
 - [ ] English screenshot for the README (current `docs/screenshot.png` shows the Korean UI); consider one screenshot per language.
 - [ ] Unit tests for `UsageStore` selection logic (first launch detection, 0.1.x upgrade keeps Claude + Grok, new plugins auto-enable once, last provider can't be disabled). It lives in the executable target; move the pure parts to `AtusCore` or add a test target that can import the app.
 - [ ] Grok fallback: the `grok agent stdio` path has not yet been observed refreshing an expired token end to end; confirm once the Grok token expires naturally.
+- [ ] Claude renewal: starting a headless Claude Code session to renew an expired token was confirmed by hand on claude 2.1.321, but not yet end to end inside the app; confirm once the Claude token expires naturally.
 - [ ] Cursor: support the `cursor-safe-storage:v1:` encrypted token (Cursor ≥ 3.27) via the `Cursor Safe Storage` keychain item; today it reports an error.
 - [ ] Plugins: when a plugin's shell is killed on timeout, child processes it started (e.g. a hung `curl`) can keep the pipe open; start the command in its own process group and kill the group.
 - [ ] Gemini: decide on a ToS-safe source (official API key usage, or the Gemini app usage page via the user's own browser session) and ship it as an example plugin if it's safe.

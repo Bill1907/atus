@@ -31,7 +31,7 @@ There is no Xcode project: `scripts/bundle.sh` assembles the `.app` from the Swi
 
 ## Rules that are easy to break
 
-- **Never write vendor credentials.** Providers only read tokens (keychain via `/usr/bin/security`, `~/.grok/auth.json`, Cursor's `state.vscdb` opened read-only, `gh auth token`). Refresh tokens rotate, so refreshing one ourselves can log the user out of the vendor's CLI. When a token is stale, either report it (`UsageError.tokenExpired`) or go through the vendor's own CLI (`codex app-server`, `grok agent stdio`), which refreshes its own login.
+- **Never write vendor credentials.** Providers only read tokens (keychain via `/usr/bin/security`, `~/.grok/auth.json`, Cursor's `state.vscdb` opened read-only, `gh auth token`). Refresh tokens rotate, so refreshing one ourselves can log the user out of the vendor's CLI. When a token is stale, either report it (`UsageError.tokenExpired`) or go through the vendor's own CLI (`codex app-server`, `grok agent stdio`, a headless `claude -p` session that is only sent `initialize`), which refreshes its own login. Never kill that CLI in the middle of a renewal.
 - **Respect vendor terms.** Google forbids third-party reuse of Gemini CLI / Antigravity OAuth, so Gemini is not built in (see README). Don't add a built-in provider that depends on a ban-risk path; that belongs in a user plugin.
 - **No network or prompts in `isDetected`.** It only checks for local files. It decides the first-launch defaults.
 - **Keep response mapping pure and tested.** Each provider has a `static func snapshot(from:…)` that turns raw JSON into a `UsageSnapshot`. Add a test with a sanitized real response for every new provider or field.

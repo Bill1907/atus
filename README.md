@@ -204,7 +204,7 @@ cd atus
 
 atus refreshes the tracked services every 5 minutes, after the Mac wakes, when you open the panel (if the data is more than a minute old), and on ⌘R while the panel is open.
 
-- **Claude** reads the OAuth token Claude Code keeps in the login keychain (`Claude Code-credentials`) through `/usr/bin/security`, then calls `GET https://api.anthropic.com/api/oauth/usage`, the endpoint behind Claude Code's `/usage`.
+- **Claude** reads the OAuth token Claude Code keeps in the login keychain (`Claude Code-credentials`) through `/usr/bin/security`, then calls `GET https://api.anthropic.com/api/oauth/usage`, the endpoint behind Claude Code's `/usage`. The token lasts about eight hours. Once it has expired, atus starts Claude Code headlessly (no prompt is sent, so no usage is spent), Claude Code renews its own login, and atus reads the keychain again. atus never writes credentials.
 - **Codex** starts `codex app-server` and asks it for `account/rateLimits/read`, the same data the Codex CLI shows. The CLI uses and refreshes its own `~/.codex/auth.json`.
 - **Grok** reads the token in `~/.grok/auth.json` and calls `GET https://cli-chat-proxy.grok.com/v1/billing?format=credits`, the endpoint behind Grok CLI's `/usage`. This response includes the per-product split but not the plan name. The token lasts about six hours. Once it expires, atus asks `grok agent stdio` for `_x.ai/billing` instead, and the Grok CLI handles its own login. That response includes the plan name but no per-product split.
 - **Cursor** reads the session Cursor.app stores in `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` (opened read-only) and calls `GET https://cursor.com/api/usage-summary`, the data behind cursor.com's usage dashboard.
@@ -222,7 +222,7 @@ The panel shows the error under the provider's name; the menu bar adds `!` to th
 
 | Panel message | Fix |
 |---|---|
-| Claude `Token expired: Run Claude Code once to renew it` | Run `claude` once; Claude Code refreshes its token. |
+| Claude `Token expired: Run Claude Code once to renew it` | atus could not get Claude Code to renew the token: either the `claude` CLI is not in `~/.local/bin`, `/opt/homebrew/bin` or `/usr/local/bin`, or the login itself has lapsed. Run `claude` once, and `/login` if it asks. atus tries the renewal again after 10 minutes. |
 | Claude `No login: Sign in to Claude Code` | Install Claude Code and log in with `/login`. |
 | Grok `No login: Run grok login` | Run `grok login`. |
 | Grok `No login: grok CLI not found` | The token has expired and atus can't find the Grok CLI. Install it; atus looks in `~/.grok/bin`, `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`. |
