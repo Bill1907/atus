@@ -9,12 +9,18 @@ import SwiftUI
 /// - a compact two-line label (~30 pt instead of ~115 pt) that still fits next to
 ///   the notch on MacBooks with crowded menu bars.
 @MainActor
-final class StatusItemController: NSObject {
+final class StatusItemController: NSObject, NSPopoverDelegate {
     static let autosaveName = "atus"
 
     private let store: UsageStore
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
+    /// Dismiss monitors, installed only while the popover is shown. `NSApp.activate()`
+    /// is a cooperative request on macOS 14+ that the system may decline for an
+    /// accessory app, and a transient popover of an inactive app never sees clicks
+    /// outside it, so it would stay open until the user first clicked inside it.
+    private var outsideClickMonitor: Any?
+    private var appActivationObserver: (any NSObjectProtocol)?
 
     init(store: UsageStore) {
         self.store = store
@@ -33,6 +39,7 @@ final class StatusItemController: NSObject {
         super.init()
 
         popover.behavior = .transient
+        popover.delegate = self
         let hostingController = NSHostingController(rootView: UsagePanel(store: store))
         // Resize the popover when the panel grows (provider picker expanded, providers added).
         hostingController.sizingOptions = .preferredContentSize
@@ -53,7 +60,48 @@ final class StatusItemController: NSObject {
         } else {
             NSApp.activate()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.makeKey()
+            installDismissMonitors()
         }
+    }
+
+    private func closePopover() {
+        if popover.isShown { popover.performClose(nil) }
+    }
+
+    private func installDismissMonitors() {
+        // Nothing would remove them again if the popover did not actually open.
+        guard popover.isShown else { return }
+        if outsideClickMonitor == nil {
+            // Global monitors only see events delivered to other applications, so clicks
+            // on our own status item or inside the panel never reach this handler.
+            outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
+                MainActor.assumeIsolated { self?.closePopover() }
+            }
+        }
+        if appActivationObserver == nil {
+            let ownPID = ProcessInfo.processInfo.processIdentifier
+            // Covers Cmd-Tab, which produces no mouse event.
+            appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+            ) { [weak self] notification in
+                let activatedPID = (notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
+                guard activatedPID != ownPID else { return }
+                MainActor.assumeIsolated { self?.closePopover() }
+            }
+        }
+    }
+
+    /// The single cleanup point for every close path (toggle, transient, Esc, monitors).
+    func popoverDidClose(_ notification: Notification) {
+        if let outsideClickMonitor {
+            NSEvent.removeMonitor(outsideClickMonitor)
+        }
+        outsideClickMonitor = nil
+        if let appActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(appActivationObserver)
+        }
+        appActivationObserver = nil
     }
 
     /// Re-renders the label whenever the store's values change.
